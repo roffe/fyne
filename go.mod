@@ -31,7 +31,7 @@ require (
 	github.com/natefinch/atomic v1.0.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nicksnyder/go-i18n/v2 v2.5.1
-	github.com/roffe/gowgpu v0.0.0-20261017203828-bf718f2b4f49
+	github.com/roffe/gowgpu v0.0.0-20261017211712-b34a0e707ed7
 	github.com/rymdport/portal v0.4.2
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/stretchr/testify v1.11.1

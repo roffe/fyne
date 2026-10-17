@@ -53,7 +53,7 @@ fn calc_distance_all_quadrants(p: vec2<f32>, size: vec2<f32>, radius: vec4<f32>)
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     u = records[in.idx].shape;
     let pos = in.pos;
-    let centered = centered_pos(gl_frag_coord(pos));
+    let centered = centered_pos(frag_coord_gl(pos));
     let edge = u.frame.z;
     let stroke_half = u.frame.w;
     let size_half = u.params.xy;

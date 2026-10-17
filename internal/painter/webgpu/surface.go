@@ -12,6 +12,10 @@ import (
 // target and gets its window here.
 func (p *Painter) AttachSurface(target wgpu.SurfaceTargetUnsafe) error {
 	p.DetachSurface()
+	if p.gpu == nil { // before Init, which makes the surface on a backend that can draw it
+		p.target = &target
+		return nil
+	}
 	inst, err := instance()
 	if err != nil {
 		return err
@@ -21,9 +25,7 @@ func (p *Painter) AttachSurface(target wgpu.SurfaceTargetUnsafe) error {
 		return err
 	}
 	p.surface, p.target, p.configured = surface, &target, image.Point{}
-	if p.gpu != nil { // before Init, init picks the format once it has an adapter
-		p.chooseSurfaceFormat()
-	}
+	p.chooseSurfaceFormat()
 	return nil
 }
 

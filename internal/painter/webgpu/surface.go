@@ -3,7 +3,7 @@ package webgpu
 import (
 	"image"
 
-	"github.com/roffe/wgpu"
+	wgpu "github.com/roffe/gowgpu"
 )
 
 // AttachSurface makes Present show frames in the window target names, in place

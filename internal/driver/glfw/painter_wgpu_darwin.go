@@ -22,7 +22,7 @@ import "C"
 
 import (
 	"github.com/go-gl/glfw/v3.4/glfw"
-	"github.com/roffe/wgpu"
+	wgpu "github.com/roffe/gowgpu"
 )
 
 // ponytail: contentsScale is set once, so a move to a screen of another

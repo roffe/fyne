@@ -41,9 +41,9 @@ type Shader struct {
 	// SourceES is the GLSL fragment shader used on OpenGL ES, mobile and web.
 	SourceES []byte
 
-	// SourceWGSL is the WGSL fragment shader used by the WebGPU painter (the
-	// default on Linux, the BSDs, Windows and Android, and on macOS with the
-	// `wgpu` build tag). Every other painter ignores it, so a shader can carry
+	// SourceWGSL is the WGSL fragment shader used by the WebGPU painter, the
+	// default everywhere but the web. Every other painter (the GL one of
+	// `-tags gl`, the web's, the software one) ignores it, so a shader can carry
 	// it next to the GLSL sources; a shader without it is not drawn there.
 	//
 	// The entry point is a fragment function named "main" returning the

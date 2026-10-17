@@ -9,7 +9,7 @@ import (
 
 	"github.com/gogpu/gputypes"
 	wgpu "github.com/roffe/gowgpu"
-	_ "github.com/roffe/gowgpu/hal/allbackends" // Vulkan, Metal or DX12, whichever the platform has
+	_ "github.com/roffe/gowgpu/hal/allbackends" // Vulkan, Metal or DX12, whichever the platform has, and OpenGL
 )
 
 // frameFormat is what everything is drawn into. Present converts it to
@@ -107,11 +107,14 @@ type gpu struct {
 var shared struct {
 	instance *wgpu.Instance
 	gpu      *gpu
+	choice   int // index into backendChoices of instance
 }
 
+// instance returns the instance of the backends being tried, see
+// nextInstance.
 func instance() (*wgpu.Instance, error) {
 	if shared.instance == nil {
-		inst, err := wgpu.CreateInstance(instanceDescriptor())
+		inst, err := wgpu.CreateInstance(&wgpu.InstanceDescriptor{Backends: backendChoices()[shared.choice]})
 		if err != nil {
 			return nil, err
 		}
@@ -120,17 +123,37 @@ func instance() (*wgpu.Instance, error) {
 	return shared.instance, nil
 }
 
-// instanceDescriptor limits the device to the API FYNE_WGPU_BACKEND names:
-// vulkan, dx12, metal or gl. Unset, gogpu picks among all but GL.
-func instanceDescriptor() *wgpu.InstanceDescriptor {
-	backends := map[string]gputypes.Backends{
+// nextInstance drops the instance for that of the next backendChoices.
+func nextInstance() {
+	if shared.instance != nil {
+		shared.instance.Release()
+		shared.instance = nil
+	}
+	shared.choice++
+}
+
+// backendChoices are the backends instance tries in turn: the API
+// FYNE_WGPU_BACKEND names (vulkan, dx12, metal or gl), or else the platform's
+// own (Vulkan, Metal or DX12) and then OpenGL, for machines without them.
+func backendChoices() []gputypes.Backends {
+	if b := map[string]gputypes.Backends{
 		"vulkan": gputypes.BackendsVulkan, "dx12": gputypes.BackendsDX12,
 		"metal": gputypes.BackendsMetal, "gl": gputypes.BackendsGL,
-	}[strings.ToLower(os.Getenv("FYNE_WGPU_BACKEND"))]
-	if backends == 0 {
-		return nil
+	}[strings.ToLower(os.Getenv("FYNE_WGPU_BACKEND"))]; b != 0 {
+		return []gputypes.Backends{b}
 	}
-	return &wgpu.InstanceDescriptor{Backends: backends}
+	return []gputypes.Backends{gputypes.BackendsPrimary, gputypes.BackendsGL}
+}
+
+// backendsName lists the APIs in b, as Vulkan/Metal/DX12.
+func backendsName(b gputypes.Backends) string {
+	var names []string
+	for _, api := range []gputypes.Backend{gputypes.BackendVulkan, gputypes.BackendMetal, gputypes.BackendDX12, gputypes.BackendGL} {
+		if b.Contains(api) {
+			names = append(names, api.String())
+		}
+	}
+	return strings.Join(names, "/")
 }
 
 // sharedGPU returns the device, creating it on first use on an adapter that

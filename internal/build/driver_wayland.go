@@ -1,4 +1,4 @@
-//go:build wayland && !x11
+//go:build wayland && !x11 && (linux || freebsd || openbsd || netbsd)
 
 package build
 

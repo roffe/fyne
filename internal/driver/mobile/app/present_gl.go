@@ -12,4 +12,4 @@ func redrawDone() {}
 // it was destroying. Only a painter that presents itself holds one.
 func WindowReleased() {}
 
-func waitWindowReleased() {}
+func waitWindowReleased() {} //nolint:unused // android.go calls it, other platforms have no window to wait for

@@ -20,7 +20,7 @@ fn regular_distance(p: vec2<f32>, r: f32, s: f32) -> f32 {
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     u = records[in.idx].shape;
     let pos = in.pos;
-    let centered = rotate(radians(u.params.y)) * centered_pos(gl_frag_coord(pos));
+    let centered = rotate(radians(u.params.y)) * centered_pos(frag_coord_gl(pos));
     let edge = u.frame.z;
     let stroke_width = u.frame.w;
     let corner_radius = u.params.w;

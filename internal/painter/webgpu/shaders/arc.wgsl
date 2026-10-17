@@ -48,7 +48,7 @@ fn sd_rounded_arc(p_in: vec2<f32>, r1: f32, r2: f32, a0: f32, a1: f32, cr: f32) 
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     u = records[in.idx].shape;
     let pos = in.pos;
-    let centered = centered_pos(gl_frag_coord(pos));
+    let centered = centered_pos(frag_coord_gl(pos));
     let edge = u.frame.z;
     let stroke_width = u.frame.w;
     let inner_radius = u.params.x;

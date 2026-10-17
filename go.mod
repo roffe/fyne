@@ -31,7 +31,7 @@ require (
 	github.com/natefinch/atomic v1.0.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nicksnyder/go-i18n/v2 v2.5.1
-	github.com/roffe/wgpu v0.34.6-0.20261017192549-8286cca0e874
+	github.com/roffe/wgpu v0.34.6-0.20261017202419-a466b7f75638
 	github.com/rymdport/portal v0.4.2
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/stretchr/testify v1.11.1
@@ -50,8 +50,6 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/go-webgpu/goffi v0.6.3 // indirect
-	github.com/go-webgpu/webgpu v0.5.5 // indirect
 	github.com/gogpu/gpucontext v0.31.3 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/hack-pad/safejs v0.1.0 // indirect

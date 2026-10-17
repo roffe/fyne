@@ -195,6 +195,7 @@ func (d *gLDriver) runGL() {
 
 func (d *gLDriver) destroyWindow(w *window, index int) {
 	w.visible = false
+	w.releasePainter()
 	w.viewport.Destroy()
 	w.destroy(d)
 
@@ -225,7 +226,7 @@ func (*gLDriver) repaintWindow(w *window) bool {
 
 	if view != nil && visible {
 		w.frame.requestFrame()
-		view.SwapBuffers()
+		w.swapBuffers()
 	}
 
 	// mark that we have walked the window and don't

@@ -1,6 +1,6 @@
 module fyne.io/fyne/v2
 
-go 1.22.0
+go 1.25.0
 
 require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4
@@ -19,6 +19,9 @@ require (
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.5
 	github.com/godbus/dbus/v5 v5.2.2
+	github.com/gogpu/gputypes v0.8.0
+	github.com/gogpu/naga v0.19.0
+	github.com/gogpu/wgpu v0.34.5
 	github.com/hack-pad/go-indexeddb v0.3.2
 	github.com/jackmordaunt/icns/v2 v2.2.7
 	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade
@@ -36,7 +39,7 @@ require (
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/image v0.24.0
 	golang.org/x/mod v0.23.0
-	golang.org/x/sys v0.30.0
+	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.22.0
 	golang.org/x/tools v0.30.0
 	golang.org/x/tools/go/vcs v0.1.0-deprecated
@@ -47,6 +50,9 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/go-webgpu/goffi v0.6.3 // indirect
+	github.com/go-webgpu/webgpu v0.5.5 // indirect
+	github.com/gogpu/gpucontext v0.31.3 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/hack-pad/safejs v0.1.0 // indirect
 	github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25 // indirect

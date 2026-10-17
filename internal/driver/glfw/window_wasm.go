@@ -519,6 +519,16 @@ func (w *window) DetachCurrentContext() {
 	glfw.DetachCurrentContext()
 }
 
+func (w *window) makeContextCurrent() {
+	w.view().MakeContextCurrent()
+}
+
+func (w *window) swapBuffers() {
+	w.view().SwapBuffers()
+}
+
+func (*window) releasePainter() {}
+
 func (w *window) RescaleContext() {
 	if w.viewport == nil {
 		return

@@ -967,7 +967,7 @@ func (w *window) RunWithContext(f func()) {
 	if w.isClosing() {
 		return
 	}
-	w.view().MakeContextCurrent()
+	w.makeContextCurrent()
 
 	f()
 

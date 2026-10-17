@@ -25,7 +25,11 @@ func (w *window) initPainter() {
 func (*window) makeContextCurrent() {}
 
 func (w *window) swapBuffers() {
-	w.canvas.Painter().(*webgpu.Painter).Present()
+	p := w.canvas.Painter().(*webgpu.Painter)
+	p.Present()
+	if p.NeedsRepaint() { // the surface lagged the window's size, catch up next frame
+		w.canvas.SetDirty()
+	}
 }
 
 // releasePainter drops the window's surface, which has to go before the window.

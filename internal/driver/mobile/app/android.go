@@ -208,6 +208,9 @@ func onNativeWindowRedrawNeeded(activity *C.ANativeActivity, window *C.ANativeWi
 //export onNativeWindowDestroyed
 func onNativeWindowDestroyed(activity *C.ANativeActivity, window *C.ANativeWindow) {
 	windowDestroyed <- window
+	if !glPresents {
+		waitWindowReleased()
+	}
 }
 
 //export onInputQueueCreated
@@ -317,10 +320,16 @@ var (
 
 	currentSize size.Event
 	darkMode    bool
+
+	// nativeWindow is the window the painter presents to when it does so
+	// itself (!glPresents), 0 while there is none.
+	nativeWindow uintptr
 )
 
 func init() {
-	theApp.registerGLViewportFilter()
+	if glPresents {
+		theApp.registerGLViewportFilter()
+	}
 }
 
 // driverShowVirtualKeyboard requests the driver to show a virtual keyboard for text input
@@ -455,6 +464,12 @@ func mainUI(vm, jniEnv, ctx uintptr) error {
 
 	var currentWindow *C.ANativeWindow
 	ensureSurface := func(w *C.ANativeWindow) error {
+		if !glPresents { // the painter makes its own surface on the window
+			currentWindow, nativeWindow = w, uintptr(unsafe.Pointer(w))
+			DisplayMetrics.WidthPx = int(C.ANativeWindow_getWidth(w))
+			DisplayMetrics.HeightPx = int(C.ANativeWindow_getHeight(w))
+			return nil
+		}
 		if C.surface != nil {
 			if currentWindow == w {
 				return nil
@@ -508,6 +523,17 @@ func mainUI(vm, jniEnv, ctx uintptr) error {
 			theApp.events.In() <- currentSize
 			theApp.events.In() <- paint.Event{External: true, Window: uintptr(unsafe.Pointer(w))}
 		case <-windowDestroyed:
+			if !glPresents {
+				// A visible app's painter holds a surface on the window and
+				// acknowledges once it let go; otherwise nothing holds it.
+				visible := theApp.lifecycleStage >= lifecycle.StageVisible
+				currentWindow, nativeWindow = nil, 0
+				theApp.sendLifecycle(lifecycle.StageAlive)
+				if !visible {
+					WindowReleased()
+				}
+				continue
+			}
 			if C.surface != nil {
 				if errStr := C.destroyEGLSurface(); errStr != nil {
 					return fmt.Errorf("%s (%s)", C.GoString(errStr), eglGetError())

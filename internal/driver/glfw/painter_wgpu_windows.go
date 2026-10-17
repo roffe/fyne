@@ -1,4 +1,4 @@
-//go:build wgpu
+//go:build wgpu || !gl
 
 package glfw
 

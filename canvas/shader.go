@@ -42,6 +42,7 @@ type Shader struct {
 	SourceES []byte
 
 	// SourceWGSL is the WGSL fragment shader used by the WebGPU painter (the
+	// default on Linux, the BSDs, Windows and Android, and on macOS with the
 	// `wgpu` build tag). Every other painter ignores it, so a shader can carry
 	// it next to the GLSL sources; a shader without it is not drawn there.
 	//

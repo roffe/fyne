@@ -1,4 +1,4 @@
-//go:build android && wgpu && (arm64 || amd64)
+//go:build android && (wgpu || !gl) && (arm64 || amd64)
 
 package mobile
 
@@ -11,8 +11,9 @@ import (
 	"fyne.io/fyne/v2/internal/painter/webgpu"
 )
 
-// With wgpu the WebGPU painter presents to the Android window itself, through
-// a Vulkan surface, and the app makes no EGL surface on it.
+// WebGPU is the default painter on 64-bit Android (-tags gl keeps GL). It
+// presents to the Android window itself, through a Vulkan or GLES surface,
+// and the app makes no EGL surface on it.
 
 // painterState is what the driver keeps for its painter besides glctx: the
 // window Android gave the app, and the window whose painter has a surface on it.

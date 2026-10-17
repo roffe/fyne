@@ -8,7 +8,7 @@ struct Record {
 fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     u = records[in.idx].shape;
     let pos = in.pos;
-    let fc = gl_frag_coord(pos);
+    let fc = frag_coord_gl(pos);
     let frame = u.frame.xy;
     let b = u.bounds;
     let stroke_width = u.frame.w;

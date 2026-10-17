@@ -140,7 +140,7 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     rec = in.idx;
     let pos = in.pos;
     // coordinates: (0.0) at rect top-left, +X right, +Y down
-    let fc = gl_frag_coord(pos);
+    let fc = frag_coord_gl(pos);
     let p = vec2<f32>(fc.x, u.frame.y - fc.y) - u.bounds.xy;
     let edge = u.frame.z;
     let stroke_width = u.frame.w;

@@ -6,7 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/go-gl/glfw/v3.4/glfw"
-	"github.com/roffe/wgpu"
+	wgpu "github.com/roffe/gowgpu"
 
 	"fyne.io/fyne/v2/internal/build"
 )

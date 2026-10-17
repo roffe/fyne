@@ -8,7 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/gogpu/gputypes"
-	"github.com/gogpu/wgpu"
+	"github.com/roffe/wgpu"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"

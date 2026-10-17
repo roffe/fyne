@@ -20,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/internal"
 	"fyne.io/fyne/v2/internal/driver"
 	softpaint "fyne.io/fyne/v2/internal/painter/software"
+	"fyne.io/fyne/v2/internal/scale"
 	internalTest "fyne.io/fyne/v2/internal/test"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/test"
@@ -305,7 +306,7 @@ func TestPainterMatchesSoftware(t *testing.T) {
 // over the theme background.
 func captureSoftware(c fyne.Canvas) image.Image {
 	size := c.Size()
-	bounds := image.Rect(0, 0, int(size.Width*c.Scale()), int(size.Height*c.Scale()))
+	bounds := image.Rect(0, 0, scale.ToScreenCoordinate(c, size.Width), scale.ToScreenCoordinate(c, size.Height)) // as the test canvas sizes it
 	img := image.NewNRGBA(bounds)
 	draw.Draw(img, bounds, image.NewUniform(theme.Color(theme.ColorNameBackground)), image.Point{}, draw.Src)
 	draw.Draw(img, bounds, softpaint.NewPainter().Paint(c), image.Point{}, draw.Over)
@@ -315,7 +316,7 @@ func captureSoftware(c fyne.Canvas) image.Image {
 // paintCanvas walks c the way the GLFW canvas does and captures the result.
 func paintCanvas(p *Painter, c fyne.Canvas) image.Image {
 	size := c.Size()
-	w, h := c.PixelCoordinateForPosition(fyne.NewPos(size.Width, size.Height))
+	w, h := scale.ToScreenCoordinate(c, size.Width), scale.ToScreenCoordinate(c, size.Height)
 	p.SetFrameBufferScale(1)
 	p.SetOutputSize(w, h)
 	p.Clear()

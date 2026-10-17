@@ -4,7 +4,7 @@
 //
 // The fragment maths is a line by line port of the GLSL shaders in
 // internal/painter/gl/shaders, which work in GL window coordinates (origin
-// bottom left, y up); gl_frag_coord converts to those so the port stays literal.
+// bottom left, y up); frag_coord_gl converts to those so the port stays literal.
 
 // Shape is one shape's uniforms, mirrored by shapeParams in Go.
 struct Shape {
@@ -49,8 +49,9 @@ fn vs_main(@builtin(vertex_index) i: u32, @builtin(instance_index) idx: u32) -> 
     return out;
 }
 
-// gl_frag_coord is gl_FragCoord.xy for a fragment position.
-fn gl_frag_coord(pos: vec4<f32>) -> vec2<f32> {
+// frag_coord_gl is gl_FragCoord.xy for a fragment position. Not gl_frag_coord:
+// GLSL reserves every name starting gl_, and naga keeps it, which Mali rejects.
+fn frag_coord_gl(pos: vec4<f32>) -> vec2<f32> {
     return vec2<f32>(pos.x, u.frame.y - pos.y);
 }
 

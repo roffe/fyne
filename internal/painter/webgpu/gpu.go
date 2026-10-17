@@ -2,6 +2,7 @@ package webgpu
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"unsafe"
@@ -150,6 +151,8 @@ func sharedGPU(surface *wgpu.Surface) (*gpu, error) {
 	if err != nil {
 		return nil, err
 	}
+	info := adapter.Info()
+	log.Printf("Renderer: WebGPU %s on %s (%s)", info.Backend, info.Name, info.DeviceType)
 	g := &gpu{instance: inst, adapter: adapter, device: device, queue: device.Queue(), blits: map[gputypes.TextureFormat]*wgpu.RenderPipeline{}}
 	if err := g.init(); err != nil {
 		return nil, err

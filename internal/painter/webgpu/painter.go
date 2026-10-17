@@ -49,6 +49,11 @@ type Painter struct {
 	presentMode   gputypes.PresentMode
 	alphaMode     gputypes.CompositeAlphaMode
 	configured    image.Point // the size the surface is configured at
+	// needsRepaint, behindSize and behindFrames track a swapchain that took
+	// another size than the frame, see checkExtent.
+	needsRepaint bool
+	behindSize   image.Point
+	behindFrames int
 
 	frame              *gpuTexture // what everything is drawn into
 	width, height      int
@@ -373,6 +378,7 @@ func (p *Painter) acquire() (*wgpu.SurfaceTexture, bool) {
 				return nil, false
 			}
 			p.configured = size
+			p.checkExtent(size)
 		}
 		tex, suboptimal, err := p.surface.GetCurrentTexture()
 		if err == nil {
@@ -381,6 +387,37 @@ func (p *Painter) acquire() (*wgpu.SurfaceTexture, bool) {
 		p.configured = image.Point{} // outdated or lost, try a fresh configuration
 	}
 	return nil, false
+}
+
+// maxBehindFrames is how many frames in a row acquire reconfigures a surface
+// that keeps an extent other than the frame's, before it settles for it.
+const maxBehindFrames = 30
+
+// checkExtent looks at the swapchain size the surface took for size. Vulkan
+// on Android takes the window's current size, which mid-rotation is still the
+// old one while the frame already has the new: the frame would be stretched
+// onto it until the next size change. So the next frame configures again,
+// and needsRepaint asks the driver for that frame.
+//
+// ponytail: a surface that never matches stops being retried after
+// maxBehindFrames, a platform that does that would need an extent-sized frame.
+func (p *Painter) checkExtent(size image.Point) {
+	if size != p.behindSize {
+		p.behindSize, p.behindFrames = size, 0
+	}
+	w, h := p.surface.ActualExtent()
+	p.needsRepaint = (int(w) != size.X || int(h) != size.Y) && p.behindFrames < maxBehindFrames
+	if p.needsRepaint {
+		p.configured = image.Point{}
+		p.behindFrames++
+	}
+}
+
+// NeedsRepaint reports whether the last Present went to a surface that has not
+// caught up with the frame's size, so another frame should be painted soon even
+// if nothing changed.
+func (p *Painter) NeedsRepaint() bool {
+	return p.needsRepaint
 }
 
 // Release frees the window surface and everything the painter put on the GPU.

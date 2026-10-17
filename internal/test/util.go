@@ -9,6 +9,31 @@ import (
 	"path/filepath"
 )
 
+// PixelTolerance loosens AssertImageMatches for a painter that rasterises
+// differently from the software one the masters come from: up to Share of the
+// pixels may differ by more than Channel in some colour channel. Zero keeps
+// the comparison exact.
+var PixelTolerance struct {
+	Channel int
+	Share   float64
+}
+
+func pixWithinTolerance(a, b []uint8) bool {
+	if PixelTolerance.Share == 0 || len(a) != len(b) || len(a) == 0 {
+		return false
+	}
+	bad := 0
+	for i := 0; i+3 < len(a); i += 4 {
+		for c := range 4 {
+			if d := int(a[i+c]) - int(b[i+c]); d > PixelTolerance.Channel || -d > PixelTolerance.Channel {
+				bad++
+				break
+			}
+		}
+	}
+	return float64(bad) <= PixelTolerance.Share*float64(len(a)/4)
+}
+
 // pixCloseEnough reports whether a and b are mostly the same.
 func pixCloseEnough(a, b []uint8) bool {
 	if len(a) != len(b) {

@@ -22,7 +22,6 @@ import (
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/goos"
 	"fyne.io/fyne/v2/internal/painter"
-	"fyne.io/fyne/v2/internal/painter/gl"
 	"fyne.io/fyne/v2/internal/scale"
 	"fyne.io/fyne/v2/internal/svg"
 	"fyne.io/fyne/v2/storage"
@@ -869,15 +868,8 @@ func (w *window) create() {
 		win.SetPos(w.xpos, w.ypos)
 	}
 
-	// run the GL init on the draw thread
-	w.RunWithContext(func() {
-		w.canvas.SetPainter(gl.NewPainter(w.canvas, w))
-		w.canvas.Painter().Init()
-
-		if build.IsWayland {
-			glfw.SwapInterval(0)
-		}
-	})
+	// run the painter init on the draw thread
+	w.RunWithContext(w.initPainter)
 
 	w.setDarkMode()
 

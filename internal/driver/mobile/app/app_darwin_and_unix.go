@@ -15,6 +15,10 @@ func screenOrientation(width, height int) size.Orientation {
 	return size.OrientationPortrait
 }
 
+// drawContext is what a lifecycle event hands the driver to draw with: the GL
+// context, or the native window when the painter presents itself.
+var drawContext = func(a *app) any { return a.glctx }
+
 func (a *app) sendLifecycle(to lifecycle.Stage) {
 	if a.lifecycleStage == to {
 		return
@@ -22,7 +26,7 @@ func (a *app) sendLifecycle(to lifecycle.Stage) {
 	a.events.In() <- lifecycle.Event{
 		From:        a.lifecycleStage,
 		To:          to,
-		DrawContext: a.glctx,
+		DrawContext: drawContext(a),
 	}
 	a.lifecycleStage = to
 }

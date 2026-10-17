@@ -3,7 +3,7 @@
 package mobile
 
 import (
-	"github.com/roffe/wgpu"
+	wgpu "github.com/roffe/gowgpu"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/internal/driver/mobile/app"

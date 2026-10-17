@@ -51,9 +51,9 @@ type ConfiguredDriver interface {
 }
 
 type driver struct {
-	app   app.App
-	glctx gl.Context
-	painterState
+	app          app.App
+	glctx        gl.Context
+	painterState //nolint:unused // empty with GL, see painter_gl.go
 
 	windows     []fyne.Window
 	device      device

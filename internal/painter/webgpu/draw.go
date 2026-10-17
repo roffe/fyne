@@ -670,8 +670,9 @@ func (p *Painter) imgToTexture(img image.Image, filter canvas.ImageScale) cache.
 		return cache.NoTexture
 	}
 	nextTexture++
-	p.textures[nextTexture] = t
-	return nextTexture
+	id := textureID(nextTexture)
+	p.textures[id] = t
+	return id
 }
 
 // imageTexture uploads img to a texture sampled with smp, or returns nil for

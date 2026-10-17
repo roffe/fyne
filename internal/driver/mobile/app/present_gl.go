@@ -1,4 +1,4 @@
-//go:build !(android && (wgpu || !gl) && (arm64 || amd64))
+//go:build !((ios || (android && (arm64 || amd64))) && (wgpu || !gl))
 
 package app
 

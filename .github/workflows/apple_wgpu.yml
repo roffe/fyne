@@ -1,0 +1,112 @@
+name: Apple WebGPU
+on:
+  push:
+    branches: [wgpu]
+  workflow_dispatch:
+permissions:
+  contents: read
+
+# The WebGPU painter is the default on macOS and iOS, where it presents through
+# Metal. Nothing else here runs it on Apple hardware: platform tests use
+# no_glfw and mobile tests run on Linux.
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: Build, WebGPU and GL
+        run: |
+          go build ./...
+          go build -tags gl ./...
+
+      - name: Metal painter against the software painter
+        run: go test -v -run 'TestUniformsMatchShaders|TestPainterMatchesSoftware' ./internal/painter/webgpu/
+        env:
+          WGPU_DUMP: ${{ runner.temp }}/dump
+
+      - name: fyne_demo window
+        if: always()
+        run: |
+          go build -o demo ./cmd/fyne_demo
+          ./demo > demo.log 2>&1 &
+          sleep 15
+          screencapture -x macos.png || true
+          kill $! || true
+          cat demo.log
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: macos
+          path: |
+            ${{ runner.temp }}/dump
+            macos.png
+            demo.log
+          if-no-files-found: ignore
+
+  ios-simulator:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      # fyne package needs a provisioning profile for ios, so build the
+      # executable with the simulator SDK and bundle it by hand.
+      - name: Build fyne_demo for the simulator, WebGPU and GL
+        run: |
+          SDK=$(xcrun -sdk iphonesimulator --show-sdk-path)
+          export CGO_ENABLED=1 GOOS=ios GOARCH=arm64
+          export CC="$(xcrun -sdk iphonesimulator -f clang) -isysroot $SDK -target arm64-apple-ios15.0-simulator"
+          go build -tags gl -o /dev/null ./cmd/fyne_demo
+          mkdir -p Demo.app
+          go build -o Demo.app/Demo ./cmd/fyne_demo
+          cat > Demo.app/Info.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleIdentifier</key><string>io.fyne.demo</string>
+            <key>CFBundleExecutable</key><string>Demo</string>
+            <key>CFBundleName</key><string>Demo</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+            <key>CFBundleSupportedPlatforms</key><array><string>iPhoneSimulator</string></array>
+            <key>MinimumOSVersion</key><string>15.0</string>
+            <key>LSRequiresIPhoneOS</key><true/>
+            <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
+            <key>UILaunchScreen</key><dict/>
+          </dict>
+          </plist>
+          EOF
+          codesign --force --sign - Demo.app
+
+      - name: Run in the simulator
+        run: |
+          UDID=$(xcrun simctl list devices available | awk -F'[()]' '/iPhone/ {print $2; exit}')
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" Demo.app
+          xcrun simctl launch --console-pty "$UDID" io.fyne.demo > ios.log 2>&1 &
+          sleep 30
+          xcrun simctl io "$UDID" screenshot ios.png
+          cat ios.log
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: ios-simulator
+          path: |
+            ios.png
+            ios.log
+          if-no-files-found: ignore

@@ -1,3 +1,5 @@
+//go:build !wgputest
+
 package webgpu
 
 import (
@@ -17,8 +19,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/software"
-	"fyne.io/fyne/v2/internal"
-	"fyne.io/fyne/v2/internal/driver"
 	softpaint "fyne.io/fyne/v2/internal/painter/software"
 	"fyne.io/fyne/v2/internal/scale"
 	internalTest "fyne.io/fyne/v2/internal/test"
@@ -311,40 +311,6 @@ func captureSoftware(c fyne.Canvas) image.Image {
 	draw.Draw(img, bounds, image.NewUniform(theme.Color(theme.ColorNameBackground)), image.Point{}, draw.Src)
 	draw.Draw(img, bounds, softpaint.NewPainter().Paint(c), image.Point{}, draw.Over)
 	return img
-}
-
-// paintCanvas walks c the way the GLFW canvas does and captures the result.
-func paintCanvas(p *Painter, c fyne.Canvas) image.Image {
-	size := c.Size()
-	w, h := scale.ToScreenCoordinate(c, size.Width), scale.ToScreenCoordinate(c, size.Height)
-	p.SetFrameBufferScale(1)
-	p.SetOutputSize(w, h)
-	p.Clear()
-
-	clips := &internal.ClipStack{}
-	paint := func(obj fyne.CanvasObject, pos, _ fyne.Position, _ fyne.Size) bool {
-		if driver.IsClip(obj) {
-			p.StartClipping(clips.Push(pos, obj.Size()).Rect())
-		}
-		p.Paint(obj, pos, size, clips.Top())
-		return false
-	}
-	afterPaint := func(obj fyne.CanvasObject, _ fyne.Position, _ fyne.CanvasObject) {
-		if driver.IsClip(obj) {
-			clips.Pop()
-			if top := clips.Top(); top != nil {
-				p.StartClipping(top.Rect())
-			} else {
-				p.StopClipping()
-			}
-		}
-	}
-	driver.WalkVisibleObjectTree(c.Content(), paint, afterPaint)
-	for _, o := range c.Overlays().List() {
-		driver.WalkVisibleObjectTree(o, paint, afterPaint)
-	}
-	p.FlushGlyphs()
-	return p.Capture(c)
 }
 
 func palette(i int) color.Color {

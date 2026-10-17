@@ -12,6 +12,7 @@ package webgpu
 import (
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"slices"
 	"sync"
@@ -112,25 +113,17 @@ func NewPainter(c fyne.Canvas, target *wgpu.SurfaceTargetUnsafe) *Painter {
 	return p
 }
 
-// Init connects to the GPU and, for a window, its surface. Without WebGPU
-// there is nothing this painter can do, so failure panics as GL's does.
+// Init connects to the GPU and, for a window, its surface. Without a GPU API
+// that can draw the window there is nothing this painter can do, so failure
+// panics, naming what each API it tried said.
 func (p *Painter) Init() {
 	if err := p.init(); err != nil {
-		panic("fyne: WebGPU initialisation failed: " + err.Error())
+		panic("fyne: no graphics API can draw this window:\n" + err.Error())
 	}
 }
 
 func (p *Painter) init() (err error) {
-	if p.target != nil && p.surface == nil { // AttachSurface may have made it already
-		var inst *wgpu.Instance
-		if inst, err = instance(); err != nil {
-			return err
-		}
-		if p.surface, err = inst.CreateSurfaceUnsafe(*p.target); err != nil {
-			return err
-		}
-	}
-	if p.gpu, err = sharedGPU(p.surface); err != nil {
+	if p.gpu, err = p.connect(); err != nil {
 		return err
 	}
 	if p.surface != nil {
@@ -394,6 +387,42 @@ func (p *Painter) acquire() (*wgpu.SurfaceTexture, bool) {
 		p.configured = image.Point{} // outdated or lost, try a fresh configuration
 	}
 	return nil, false
+}
+
+// connect makes the window's surface, unless AttachSurface has, and gets the
+// shared device on an adapter that can present to it. Until a device exists
+// that goes down backendChoices: a machine without Vulkan, Metal or DX12 (an
+// old GPU, a VM) gets OpenGL.
+func (p *Painter) connect() (*gpu, error) {
+	var errs []error
+	for {
+		g, err := p.connectOnce()
+		if err == nil {
+			return g, nil
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", backendsName(backendChoices()[shared.choice]), err))
+		if shared.gpu != nil || shared.choice+1 == len(backendChoices()) {
+			return nil, errors.Join(errs...)
+		}
+		if p.surface != nil { // made on the instance about to go
+			p.surface.Release()
+			p.surface = nil
+		}
+		nextInstance()
+	}
+}
+
+func (p *Painter) connectOnce() (*gpu, error) {
+	if p.target != nil && p.surface == nil {
+		inst, err := instance()
+		if err != nil {
+			return nil, err
+		}
+		if p.surface, err = inst.CreateSurfaceUnsafe(*p.target); err != nil {
+			return nil, err
+		}
+	}
+	return sharedGPU(p.surface)
 }
 
 // maxBehindFrames is how many frames in a row acquire reconfigures a surface

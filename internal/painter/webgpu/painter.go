@@ -11,6 +11,7 @@ package webgpu
 
 import (
 	"context"
+	"errors"
 	"image"
 	"slices"
 	"sync"
@@ -354,7 +355,13 @@ func (p *Painter) Present() {
 	p.submit()
 	if err := p.surface.Present(tex); err != nil {
 		p.configured = image.Point{}
-		logError("present", err)
+		if !errors.Is(err, wgpu.ErrSurfaceOutdated) {
+			logError("present", err)
+			return
+		}
+		// X11 Vulkan outdates the swapchain on every resize step: this frame
+		// was dropped, so paint another at the new size.
+		p.needsRepaint = true
 	}
 }
 

@@ -19,8 +19,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/gogpu/gputypes"
 	wgpu "github.com/roffe/gowgpu"
+	"github.com/roffe/gowgpu/gputypes"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/internal"

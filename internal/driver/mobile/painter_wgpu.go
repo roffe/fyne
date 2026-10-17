@@ -1,8 +1,10 @@
-//go:build android && (wgpu || !gl) && (arm64 || amd64)
+//go:build (ios || (android && (arm64 || amd64))) && (wgpu || !gl)
 
 package mobile
 
 import (
+	"runtime"
+
 	wgpu "github.com/roffe/gowgpu"
 
 	"fyne.io/fyne/v2"
@@ -11,9 +13,10 @@ import (
 	"fyne.io/fyne/v2/internal/painter/webgpu"
 )
 
-// WebGPU is the default painter on 64-bit Android (-tags gl keeps GL). It
-// presents to the Android window itself, through a Vulkan or GLES surface,
-// and the app makes no EGL surface on it.
+// WebGPU is the default painter on iOS and 64-bit Android (-tags gl keeps
+// GL). It presents to the window itself, the Android ANativeWindow through
+// Vulkan or GLES or the iOS view's CAMetalLayer through Metal, and the app
+// makes no GL surface on it.
 
 // painterState is what the driver keeps for its painter besides glctx: the
 // window Android gave the app, and the window whose painter has a surface on it.
@@ -57,6 +60,9 @@ func (d *driver) prepareSurface(w *window) {
 		d.surfaceOwner = nil
 	}
 	target := wgpu.SurfaceTargetFromAndroidNativeWindow(uintptr(d.nativeWindow))
+	if runtime.GOOS == "ios" {
+		target = wgpu.SurfaceTargetFromMetalLayer(uintptr(d.nativeWindow))
+	}
 	if err := w.canvas.Painter().(*webgpu.Painter).AttachSurface(target); err != nil {
 		fyne.LogError("WebGPU surface creation failed", err)
 		return

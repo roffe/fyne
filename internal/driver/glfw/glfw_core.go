@@ -1,4 +1,4 @@
-//go:build ((!gles && !arm && !arm64) || darwin) && !wasm && !test_web_driver && (gl || darwin) && !wgpu
+//go:build ((!gles && !arm && !arm64) || darwin) && !wasm && !test_web_driver && gl && !wgpu
 
 package glfw
 

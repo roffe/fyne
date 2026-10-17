@@ -12,14 +12,31 @@
 #import <UIKit/UIKit.h>
 #import <MobileCoreServices/MobileCoreServices.h>
 #import <GLKit/GLKit.h>
+#import <QuartzCore/CAMetalLayer.h>
 #import <UserNotifications/UserNotifications.h>
 
 struct utsname sysInfo;
 
 static CGFloat keyboardHeight;
 
+#ifdef FYNE_METAL_LAYER
+// With WebGPU (present_wgpu_ios.go) the painter presents to the view's
+// CAMetalLayer itself, so there is no GL context and no draw loop here.
+@interface GoAppAppController : UIViewController<UIContentContainer>
+@end
+
+@interface GoMetalView : UIView
+@end
+
+@implementation GoMetalView
++ (Class)layerClass {
+	return [CAMetalLayer class];
+}
+@end
+#else
 @interface GoAppAppController : GLKViewController<UIContentContainer, GLKViewDelegate>
 @end
+#endif
 
 @interface GoInputView : UITextField<UITextFieldDelegate>
 @end
@@ -111,7 +128,9 @@ static CGFloat keyboardHeight;
 {
 	// TODO: replace by swapping out GLKViewController for a UIVIewController.
 	[super viewWillAppear:animated];
+#ifndef FYNE_METAL_LAYER
 	self.paused = YES;
+#endif
 
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
@@ -124,14 +143,29 @@ static CGFloat keyboardHeight;
     [[NSNotificationCenter defaultCenter] removeObserver:self name:UIKeyboardWillHideNotification object:nil];
 }
 
+#ifdef FYNE_METAL_LAYER
+- (void)loadView {
+	self.view = [[GoMetalView alloc] initWithFrame:[UIScreen mainScreen].bounds];
+}
+#endif
+
 - (void)viewDidLoad {
 	[super viewDidLoad];
+#ifndef FYNE_METAL_LAYER
 	self.context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+#endif
 	self.inputView = [[GoInputView alloc] initWithFrame:CGRectMake(0, 0, 0, 0)];
 	self.inputView.delegate = self.inputView;
 	self.inputView.autocapitalizationType = UITextAutocapitalizationTypeNone;
 	self.inputView.autocorrectionType = UITextAutocorrectionTypeNo;
 	[self.view addSubview:self.inputView];
+#ifdef FYNE_METAL_LAYER
+	self.view.multipleTouchEnabled = true; // TODO expose setting to user.
+	self.view.userInteractionEnabled = YES;
+	// Drawables at the screen's pixel size, which is what updateConfig reports.
+	self.view.contentScaleFactor = [UIScreen mainScreen].nativeScale;
+	setMetalLayer((GoUintptr)self.view.layer);
+#else
 	self.glview = (GLKView*)self.view;
 	self.glview.drawableDepthFormat = GLKViewDrawableDepthFormat24;
 	self.glview.multipleTouchEnabled = true; // TODO expose setting to user.
@@ -143,6 +177,7 @@ static CGFloat keyboardHeight;
 	//self.paused = YES;
 	//self.resumeOnDidBecomeActive = NO;
 	//self.preferredFramesPerSecond = 0;
+#endif
 
 	int scale = 1;
 	if ([[UIScreen mainScreen] respondsToSelector:@selector(displayLinkWithTarget:selector:)]) {
@@ -154,9 +189,11 @@ static CGFloat keyboardHeight;
 	UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
 	updateConfig((int)size.width, (int)size.height, orientation);
 
+#ifndef FYNE_METAL_LAYER
     self.glview.enableSetNeedsDisplay = NO;
     CADisplayLink* displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(render:)];
     [displayLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSDefaultRunLoopMode];
+#endif
 }
 
 - (void)viewWillTransitionToSize:(CGSize)ptSize withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
@@ -169,6 +206,7 @@ static CGFloat keyboardHeight;
 	}];
 }
 
+#ifndef FYNE_METAL_LAYER
 - (void)render:(CADisplayLink*)displayLink {
     if (needsDraw()) {
         [self.glview display];
@@ -178,6 +216,7 @@ static CGFloat keyboardHeight;
 - (void)glkView:(GLKView *)view drawInRect:(CGRect)rect {
     drawloop();
 }
+#endif
 
 #define TOUCH_TYPE_BEGIN 0 // touch.TypeBegin
 #define TOUCH_TYPE_MOVE  1 // touch.TypeMove

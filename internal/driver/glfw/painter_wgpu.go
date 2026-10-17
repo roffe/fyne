@@ -1,4 +1,4 @@
-//go:build (wgpu || !(gl || darwin)) && !wasm && !test_web_driver
+//go:build (wgpu || !gl) && !wasm && !test_web_driver
 
 package glfw
 
@@ -8,8 +8,7 @@ import (
 	"fyne.io/fyne/v2/internal/painter/webgpu"
 )
 
-// WebGPU is the default painter except on macOS, which keeps GL until Metal
-// has been run (-tags wgpu opts in there); -tags gl keeps GL everywhere.
+// WebGPU is the default painter; -tags gl keeps GL.
 // Windows get no GL context: GLFW only provides the native window and its
 // input, and the WebGPU painter presents to a surface on it.
 

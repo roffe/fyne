@@ -97,6 +97,10 @@ func (a *app) Send(event any) {
 }
 
 func (a *app) Publish() PublishResult {
+	if !glPresents { // the painter has presented, the window only waits for it
+		redrawDone()
+		return PublishResult{}
+	}
 	// gl.Flush is a lightweight (on modern GL drivers) blocking call
 	// that ensures all GL functions pending in the gl package have
 	// been passed onto the GL driver before the app package attempts

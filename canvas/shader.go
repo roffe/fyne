@@ -41,6 +41,23 @@ type Shader struct {
 	// SourceES is the GLSL fragment shader used on OpenGL ES, mobile and web.
 	SourceES []byte
 
+	// SourceWGSL is the WGSL fragment shader used by the WebGPU painter (the
+	// `wgpu` build tag). Every other painter ignores it, so a shader can carry
+	// it next to the GLSL sources; a shader without it is not drawn there.
+	//
+	// The entry point is a fragment function named "main" returning the
+	// straight-alpha colour. Declarations are put in front of it: fyne.frame.xy
+	// is the size of the output frame and fyne.bounds this object's x1, y1, x2,
+	// y2, both in pixels from the top left, as @builtin(position) is.
+	// Group 0 belongs to Fyne. In group 1 every texture_2d<f32> variable gets
+	// the image in Textures under its name, and every sampler variable a linear
+	// sampler. Uniforms fill the f32 members, by name, of the struct in a
+	// var<uniform> at @group(2) @binding(0), of up to 16 KiB; members with
+	// no value read zero.
+	//
+	// Since: 2.9
+	SourceWGSL []byte
+
 	// Textures supplies named images to the shader. Each entry is uploaded to
 	// the GPU and exposed to the fragment shader as a "uniform sampler2D <name>".
 	// Images are uploaded once and reused; replacing an entry with a different

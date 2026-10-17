@@ -115,7 +115,7 @@ func (p *Painter) Init() {
 }
 
 func (p *Painter) init() (err error) {
-	if p.target != nil {
+	if p.target != nil && p.surface == nil { // AttachSurface may have made it already
 		var inst *wgpu.Instance
 		if inst, err = instance(); err != nil {
 			return err

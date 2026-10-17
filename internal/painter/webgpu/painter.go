@@ -93,9 +93,10 @@ type Painter struct {
 	warnDevice            sync.Once
 }
 
-// nextTexture names textures in the cache. Shared by every painter so that a
-// lookup in the wrong one misses instead of finding another canvas' texture.
-var nextTexture cache.TextureType
+// nextTexture names textures in the cache, see textureID. Shared by every
+// painter so that a lookup in the wrong one misses instead of finding another
+// canvas' texture.
+var nextTexture uint32
 
 // NewPainter returns a painter for c that presents to the window target names,
 // or one that only draws offscreen, for Capture, when target is nil.

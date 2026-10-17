@@ -8,7 +8,7 @@ import (
 	"github.com/gogpu/naga"
 	"github.com/gogpu/naga/hlsl"
 	"github.com/gogpu/naga/ir"
-	"github.com/gogpu/wgpu/hal/dx12/d3dcompile"
+	"github.com/roffe/wgpu/hal/dx12/d3dcompile"
 )
 
 // TestShadersCompileWithFXC compiles every pipeline's WGSL the way gogpu's

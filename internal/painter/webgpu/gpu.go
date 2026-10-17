@@ -7,8 +7,8 @@ import (
 	"unsafe"
 
 	"github.com/gogpu/gputypes"
-	"github.com/gogpu/wgpu"
-	_ "github.com/gogpu/wgpu/hal/allbackends" // Vulkan, Metal, DX12 or GLES, whichever the platform has
+	"github.com/roffe/wgpu"
+	_ "github.com/roffe/wgpu/hal/allbackends" // Vulkan, Metal, DX12 or GLES, whichever the platform has
 )
 
 // frameFormat is what everything is drawn into. Present converts it to

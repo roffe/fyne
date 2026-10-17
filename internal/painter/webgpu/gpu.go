@@ -120,7 +120,8 @@ func instance() (*wgpu.Instance, error) {
 }
 
 // instanceDescriptor limits the device to the API FYNE_WGPU_BACKEND names:
-// vulkan, dx12, metal or gl. Unset, gogpu picks among all but GL.
+// vulkan, dx12, metal or gl. Unset, gogpu picks among all but GL. software
+// is picked by sharedGPU instead, as the CPU fallback adapter.
 func instanceDescriptor() *wgpu.InstanceDescriptor {
 	backends := map[string]gputypes.Backends{
 		"vulkan": gputypes.BackendsVulkan, "dx12": gputypes.BackendsDX12,
@@ -142,7 +143,10 @@ func sharedGPU(surface *wgpu.Surface) (*gpu, error) {
 	if err != nil {
 		return nil, err
 	}
-	adapter, err := inst.RequestAdapter(&wgpu.RequestAdapterOptions{CompatibleSurface: surface})
+	adapter, err := inst.RequestAdapter(&wgpu.RequestAdapterOptions{
+		CompatibleSurface:    surface,
+		ForceFallbackAdapter: strings.EqualFold(os.Getenv("FYNE_WGPU_BACKEND"), "software"),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("no WebGPU adapter: %w", err)
 	}

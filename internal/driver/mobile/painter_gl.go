@@ -8,8 +8,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// painterState is what the driver keeps for its painter besides glctx.
-type painterState struct{}
+// painterState is what the driver keeps for its painter besides glctx:
+// nothing with GL, the WebGPU build keeps its window there.
+type painterState struct{} //nolint:unused // embedded in driver for the WebGPU build's state
 
 func newPainter(c *canvas, w *window) pgl.Painter {
 	return pgl.NewPainter(c, w)
@@ -34,7 +35,7 @@ func (*driver) prepareSurface(*window) {}
 
 func (d *driver) clearFrame(*canvas) {
 	r, g, b, a := theme.Color(theme.ColorNameBackground).RGBA()
-	max16bit := float32(255 * 255)
+	max16bit := float32(0xff * 0xff)
 	d.glctx.ClearColor(float32(r)/max16bit, float32(g)/max16bit, float32(b)/max16bit, float32(a)/max16bit)
 	d.glctx.Clear(gl.ColorBufferBit)
 }

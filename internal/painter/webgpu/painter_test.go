@@ -177,7 +177,7 @@ func TestPainterMatchesSoftware(t *testing.T) {
 	blurBase := canvas.NewImageFromImage(image3)
 	blurBase.ScaleMode = canvas.ImageScalePixels
 	raster := canvas.NewRasterWithPixels(func(x, y, w, h int) color.Color {
-		return color.NRGBA{R: uint8(x * 255 / max(w, 1)), G: uint8(y * 255 / max(h, 1)), B: 128, A: 255}
+		return color.NRGBA{R: uint8(x * 255 / max(w, 1)), G: uint8(y * 255 / max(h, 1)), B: 128, A: 255} //nolint:gosec // G115: 0-255 as x < w and y < h
 	})
 
 	var clipped []fyne.CanvasObject
@@ -314,7 +314,7 @@ func captureSoftware(c fyne.Canvas) image.Image {
 }
 
 func palette(i int) color.Color {
-	return color.NRGBA{R: uint8(i * 47), G: uint8(255 - i*13), B: uint8(i * 101), A: 0xff}
+	return color.NRGBA{R: uint8(i * 47), G: uint8(255 - i*13), B: uint8(i * 101), A: 0xff} //nolint:gosec // G115: wrapping is how it mixes colours
 }
 
 func channelDiff(a, b color.Color) int {
@@ -335,7 +335,7 @@ func abs(v int) int {
 }
 
 func writePNG(t *testing.T, path string, img image.Image) {
-	f, err := os.Create(path)
+	f, err := os.Create(path) //nolint:gosec // G703: WGPU_DUMP is the developer's own directory
 	if err != nil {
 		t.Log(err)
 		return

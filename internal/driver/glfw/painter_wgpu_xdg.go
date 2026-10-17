@@ -11,8 +11,9 @@ import (
 	"fyne.io/fyne/v2/internal/build"
 )
 
-// ponytail: x11-only and wayland-only builds lack the other's GLFW natives,
-// so wgpu needs the default build, which has both.
+// surfaceTarget picks the window system GLFW connected to. x11-only and
+// wayland-only builds lack the other's GLFW natives, see painter_wgpu_x11.go
+// and painter_wgpu_wayland.go.
 func surfaceTarget(v *glfw.Window) wgpu.SurfaceTargetUnsafe {
 	if build.IsWayland {
 		return wgpu.SurfaceTargetFromWaylandSurface(uintptr(unsafe.Pointer(glfw.GetWaylandDisplay())), uintptr(unsafe.Pointer(v.GetWaylandWindow())))

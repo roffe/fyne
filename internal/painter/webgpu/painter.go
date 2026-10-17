@@ -1,6 +1,6 @@
-// Package webgpu is a Fyne painter on WebGPU, through the pure Go
-// github.com/roffe/wgpu (Vulkan, Metal, DirectX 12 or GLES underneath). It
-// draws what the GL painter draws, with the same shaders ported to WGSL.
+// Package webgpu is a Fyne painter on WebGPU, through github.com/roffe/gowgpu
+// (Vulkan, Metal or DirectX 12 underneath, called through cgo). It draws what
+// the GL painter draws, with the same shaders ported to WGSL.
 //
 // Everything is drawn into an offscreen texture the size of the output, which
 // Present copies to the window surface and Capture reads back. Draws are
@@ -18,7 +18,7 @@ import (
 	"unsafe"
 
 	"github.com/gogpu/gputypes"
-	"github.com/roffe/wgpu"
+	wgpu "github.com/roffe/gowgpu"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/internal"

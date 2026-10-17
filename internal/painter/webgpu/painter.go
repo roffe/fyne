@@ -27,6 +27,7 @@ import (
 	"fyne.io/fyne/v2/internal/build"
 	"fyne.io/fyne/v2/internal/cache"
 	paint "fyne.io/fyne/v2/internal/painter"
+	"fyne.io/fyne/v2/internal/scale"
 	"fyne.io/fyne/v2/theme"
 )
 
@@ -187,7 +188,9 @@ func (p *Painter) chooseSurfaceFormat() {
 
 // Capture reads back the last frame painted.
 func (p *Painter) Capture(c fyne.Canvas) image.Image {
-	w, h := c.PixelCoordinateForPosition(fyne.NewPos(c.Size().Width, c.Size().Height))
+	// Rounded up like the canvas sizes its own capture: PixelCoordinateForPosition
+	// truncates, losing the last row and column of a fractional size.
+	w, h := scale.ToScreenCoordinate(c, c.Size().Width), scale.ToScreenCoordinate(c, c.Size().Height)
 	w, h = min(w, p.width), min(h, p.height)
 	img := image.NewRGBA(image.Rect(0, 0, max(w, 0), max(h, 0)))
 	if w <= 0 || h <= 0 || p.frame == nil {

@@ -19,15 +19,12 @@ func TestGoroutineID(t *testing.T) {
 	var childID1, childID2 uint64
 	testID1 := goroutineID()
 	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
+	wg.Go(func() {
 		childID1 = goroutineID()
-		wg.Done()
-	}()
-	go func() {
+	})
+	wg.Go(func() {
 		childID2 = goroutineID()
-		wg.Done()
-	}()
+	})
 	wg.Wait()
 	testID2 := goroutineID()
 

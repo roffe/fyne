@@ -16,7 +16,7 @@ import (
 // and painter_wgpu_wayland.go.
 func surfaceTarget(v *glfw.Window) wgpu.SurfaceTargetUnsafe {
 	if build.IsWayland {
-		return wgpu.SurfaceTargetFromWaylandSurface(uintptr(unsafe.Pointer(glfw.GetWaylandDisplay())), uintptr(unsafe.Pointer(v.GetWaylandWindow())))
+		return wgpu.SurfaceTargetFromWaylandSurface(uintptr(unsafe.Pointer(glfw.GetWaylandDisplay())), uintptr(unsafe.Pointer(v.GetWaylandWindow()))) //nolint:gosec // G103: native handles for the surface
 	}
-	return wgpu.SurfaceTargetFromXlibWindow(uintptr(unsafe.Pointer(glfw.GetX11Display())), uintptr(v.GetX11Window()))
+	return wgpu.SurfaceTargetFromXlibWindow(uintptr(unsafe.Pointer(glfw.GetX11Display())), uintptr(v.GetX11Window())) //nolint:gosec // G103: native handles for the surface
 }

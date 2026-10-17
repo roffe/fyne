@@ -36,6 +36,12 @@ const (
 	// records of an instanced batch, or a single draw's. 16 KiB is what every
 	// backend guarantees, GLES 3 included.
 	bindWindow = 16 << 10
+	// bindAlign is where every backend takes uniform offsets: WebGPU's
+	// minUniformBufferOffsetAlignment.
+	bindAlign = 256
+	// copyRowAlign is how buffer rows of a texture copy are aligned:
+	// WebGPU's COPY_BYTES_PER_ROW_ALIGNMENT.
+	copyRowAlign = 256
 	// arenaSize is the uniform and the starting vertex buffer size. A frame
 	// that needs more is submitted in parts.
 	arenaSize = 1 << 20
@@ -118,12 +124,12 @@ func NewPainter(c fyne.Canvas, target *wgpu.SurfaceTargetUnsafe) *Painter {
 // that can draw the window there is nothing this painter can do, so failure
 // panics, naming what each API it tried said.
 func (p *Painter) Init() {
-	if err := p.init(); err != nil {
+	if err := p.setup(); err != nil {
 		panic("fyne: no graphics API can draw this window:\n" + err.Error())
 	}
 }
 
-func (p *Painter) init() (err error) {
+func (p *Painter) setup() (err error) {
 	if p.gpu, err = p.connect(); err != nil {
 		return err
 	}
@@ -138,7 +144,7 @@ func (p *Painter) init() (err error) {
 	if p.vertexBuf, err = dev.CreateBuffer(&wgpu.BufferDescriptor{Label: "fyne vertices", Size: arenaSize, Usage: gputypes.BufferUsageVertex | gputypes.BufferUsageCopyDst}); err != nil {
 		return err
 	}
-	p.uniformGroups = make([]*wgpu.BindGroup, (arenaSize-bindWindow)/256+1)
+	p.uniformGroups = make([]*wgpu.BindGroup, (arenaSize-bindWindow)/bindAlign+1)
 	if p.uniformGroups[0], err = p.newUniformGroup(0); err != nil {
 		return err
 	}
@@ -193,54 +199,57 @@ func (p *Painter) Capture(c fyne.Canvas) image.Image {
 	w, h := scale.ToScreenCoordinate(c, c.Size().Width), scale.ToScreenCoordinate(c, c.Size().Height)
 	w, h = min(w, p.width), min(h, p.height)
 	img := image.NewRGBA(image.Rect(0, 0, max(w, 0), max(h, 0)))
-	if w <= 0 || h <= 0 || p.frame == nil {
-		return img
+	if w > 0 && h > 0 && p.frame != nil {
+		if err := p.readFrame(img); err != nil {
+			logError("capture", err)
+		}
 	}
+	return img
+}
+
+// readFrame copies the top left of the frame, as much as fits, into img.
+func (p *Painter) readFrame(img *image.RGBA) error {
+	w, h := img.Rect.Dx(), img.Rect.Dy()
 	p.flushBatch()
 	p.submit()
 
-	stride := (w*4 + 255) &^ 255 // copies need rows aligned to 256 bytes
-	size := uint64(stride * h)
+	stride := (w*4 + copyRowAlign - 1) &^ (copyRowAlign - 1)
+	size := u64(stride * h)
 	buf, err := p.gpu.device.CreateBuffer(&wgpu.BufferDescriptor{Size: size, Usage: gputypes.BufferUsageMapRead | gputypes.BufferUsageCopyDst})
 	if err != nil {
-		logError("capture", err)
-		return img
+		return err
 	}
 	defer buf.Release()
 	enc := p.encoder()
 	if enc == nil {
-		return img
+		return nil
 	}
 	enc.CopyTextureToBuffer(p.frame.tex, buf, []wgpu.BufferTextureCopy{{
-		BufferLayout: wgpu.ImageDataLayout{BytesPerRow: uint32(stride), RowsPerImage: uint32(h)},
+		BufferLayout: wgpu.ImageDataLayout{BytesPerRow: u32(stride), RowsPerImage: u32(h)},
 		TextureBase:  wgpu.ImageCopyTexture{Texture: p.frame.tex},
-		Size:         wgpu.Extent3D{Width: uint32(w), Height: uint32(h), DepthOrArrayLayers: 1},
+		Size:         wgpu.Extent3D{Width: u32(w), Height: u32(h), DepthOrArrayLayers: 1},
 	}})
 	p.submit()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := buf.Map(ctx, wgpu.MapModeRead, 0, size); err != nil {
-		logError("capture", err)
-		return img
+		return err
 	}
-	defer buf.Unmap()
 	rng, err := buf.MappedRange(0, size)
-	if err != nil {
-		logError("capture", err)
-		return img
-	}
-	data := rng.Bytes()
-	for y := 0; y < h; y++ {
-		row := img.Pix[y*img.Stride : y*img.Stride+w*4]
-		copy(row, data[y*stride:])
-		// Composited against the window background already, but blending
-		// leaves alpha below 255 under shadows and antialiased edges.
-		for x := 3; x < len(row); x += 4 {
-			row[x] = 0xff
+	if err == nil {
+		data := rng.Bytes()
+		for y := range h {
+			row := img.Pix[y*img.Stride : y*img.Stride+w*4]
+			copy(row, data[y*stride:])
+			// Composited against the window background already, but blending
+			// leaves alpha below 255 under shadows and antialiased edges.
+			for x := 3; x < len(row); x += 4 {
+				row[x] = 0xff
+			}
 		}
 	}
-	return img
+	return errors.Join(err, buf.Unmap())
 }
 
 // Clear starts a frame on the theme background.
@@ -308,14 +317,25 @@ func (p *Painter) Present() {
 	if p.surface == nil || p.frame == nil {
 		return
 	}
+	err := p.drawToSurface()
+	if errors.Is(err, wgpu.ErrSurfaceOutdated) {
+		// X11 Vulkan outdates the swapchain on every resize step: this frame
+		// was dropped, so paint another at the new size.
+		p.needsRepaint = true
+	} else if err != nil {
+		logError("present", err)
+	}
+}
+
+// drawToSurface draws the frame into the surface's next texture and shows it.
+func (p *Painter) drawToSurface() error {
 	pipe, err := p.gpu.blitPipeline(p.surfaceFormat)
 	if err != nil {
-		logError("present", err)
-		return
+		return err
 	}
 	tex, suboptimal := p.acquire()
 	if tex == nil {
-		return
+		return nil
 	}
 	if suboptimal {
 		p.configured = image.Point{} // present this one, configure afresh for the next
@@ -323,42 +343,33 @@ func (p *Painter) Present() {
 	view, err := tex.CreateView(nil)
 	if err != nil {
 		p.surface.DiscardTexture()
-		logError("present", err)
-		return
+		return err
 	}
 	defer view.Release()
 
 	enc := p.encoder()
 	if enc == nil {
 		p.surface.DiscardTexture()
-		return
+		return nil
 	}
 	pass, err := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
 		ColorAttachments: []wgpu.RenderPassColorAttachment{{View: view, LoadOp: gputypes.LoadOpClear, StoreOp: gputypes.StoreOpStore}},
 	})
 	if err != nil {
 		p.surface.DiscardTexture()
-		logError("present", err)
-		return
+		return err
 	}
 	pass.SetPipeline(pipe)
 	pass.SetBindGroup(0, p.uniformGroups[0], nil)
 	pass.SetBindGroup(1, p.frame.group, nil)
 	pass.Draw(gputypes.DrawArgs{VertexCount: 3, InstanceCount: 1})
-	if err := pass.End(); err != nil {
-		logError("present", err)
-	}
+	endErr := pass.End()
 	p.submit()
 	if err := p.surface.Present(tex); err != nil {
 		p.configured = image.Point{}
-		if !errors.Is(err, wgpu.ErrSurfaceOutdated) {
-			logError("present", err)
-			return
-		}
-		// X11 Vulkan outdates the swapchain on every resize step: this frame
-		// was dropped, so paint another at the new size.
-		p.needsRepaint = true
+		return err
 	}
+	return endErr
 }
 
 // acquire returns the surface texture to present into, configuring the
@@ -369,8 +380,8 @@ func (p *Painter) acquire() (*wgpu.SurfaceTexture, bool) {
 	for range 2 {
 		if p.configured != size {
 			err := p.surface.Configure(p.gpu.device, &wgpu.SurfaceConfiguration{
-				Width:       uint32(p.width),
-				Height:      uint32(p.height),
+				Width:       u32(p.width),
+				Height:      u32(p.height),
 				Format:      p.surfaceFormat,
 				Usage:       gputypes.TextureUsageRenderAttachment,
 				PresentMode: p.presentMode,
@@ -502,9 +513,9 @@ func (p *Painter) Release() {
 }
 
 // SetFrameBufferScale tells us when we have more than 1 framebuffer pixel for each output pixel.
-func (p *Painter) SetFrameBufferScale(scale float32) {
-	p.texScale = scale
-	p.pixScale = p.canvas.Scale() * scale
+func (p *Painter) SetFrameBufferScale(fbScale float32) {
+	p.texScale = fbScale
+	p.pixScale = p.canvas.Scale() * fbScale
 }
 
 // SetOutputSize sizes the frame, in pixels.
@@ -570,7 +581,7 @@ func cut(w, h int, r image.Rectangle, clipping bool) image.Rectangle {
 // applyScissor sets the pass' scissor to the clip, unless it already is.
 func (p *Painter) applyScissor(pass *wgpu.RenderPassEncoder) {
 	if r := p.clipRect(); r != p.scissor {
-		pass.SetScissorRect(gputypes.ScissorRect{X: uint32(r.Min.X), Y: uint32(r.Min.Y), Width: uint32(r.Dx()), Height: uint32(r.Dy())})
+		pass.SetScissorRect(gputypes.ScissorRect{X: u32(r.Min.X), Y: u32(r.Min.Y), Width: u32(r.Dx()), Height: u32(r.Dy())})
 		p.scissor = r
 	}
 }
@@ -612,7 +623,7 @@ func (p *Painter) bind(pass *wgpu.RenderPassEncoder, pipe *wgpu.RenderPipeline, 
 // Every offset has a group of its own, made on first use and kept, because
 // gogpu's DX12 backend ignores dynamic offsets (gogpu/wgpu#343).
 func (p *Painter) uniformGroup(offset uint32) *wgpu.BindGroup {
-	i := offset / 256
+	i := offset / bindAlign
 	if p.uniformGroups[i] == nil {
 		g, err := p.newUniformGroup(offset)
 		if err != nil {
@@ -636,7 +647,7 @@ func (p *Painter) newUniformGroup(offset uint32) (*wgpu.BindGroup, error) {
 // reading its own record: gogpu allocates for every command recorded, so a
 // command per quad cost more than the drawing did.
 func drawQuad[T any](p *Painter, pipe *wgpu.RenderPipeline, u *T, tex *wgpu.BindGroup) {
-	b := unsafe.Slice((*byte)(unsafe.Pointer(u)), unsafe.Sizeof(*u))
+	b := unsafe.Slice((*byte)(unsafe.Pointer(u)), unsafe.Sizeof(*u)) //nolint:gosec // G103: uniforms go to the GPU as bytes
 	if p.batchN > 0 && (pipe != p.batchPipe || tex != p.batchTex || (p.batchN+1)*len(b) > bindWindow) {
 		p.flushInstances()
 	}
@@ -660,8 +671,8 @@ func (p *Painter) flushInstances() {
 	if pass == nil {
 		return
 	}
-	p.bind(pass, p.batchPipe, uint32(p.batchStart), p.batchTex)
-	pass.Draw(gputypes.DrawArgs{VertexCount: 4, InstanceCount: uint32(n)})
+	p.bind(pass, p.batchPipe, u32(p.batchStart), p.batchTex)
+	pass.Draw(gputypes.DrawArgs{VertexCount: 4, InstanceCount: u32(n)})
 }
 
 // drawOne draws one quad of pipe with the uniforms u straight away, for
@@ -680,13 +691,13 @@ func drawOne[T any](p *Painter, pipe *wgpu.RenderPipeline, u *T, tex *wgpu.BindG
 // record queues one draw's uniforms, returning their offset in the uniform
 // buffer. Nothing can come between it and the draw, which might submit.
 func record[T any](p *Painter, u *T) uint32 {
-	return p.recordBytes(unsafe.Slice((*byte)(unsafe.Pointer(u)), unsafe.Sizeof(*u)))
+	return p.recordBytes(unsafe.Slice((*byte)(unsafe.Pointer(u)), unsafe.Sizeof(*u))) //nolint:gosec // G103: uniforms go to the GPU as bytes
 }
 
 func (p *Painter) recordBytes(b []byte) uint32 {
 	offset := p.uniformSpace()
 	p.uniforms = append(p.uniforms, b...)
-	return uint32(offset)
+	return u32(offset)
 }
 
 // uniformSpace returns where the next uniforms go: an offset a bind can start
@@ -709,20 +720,20 @@ func (p *Painter) reserve(n int) {
 
 // alignBind rounds up to the 256 bytes every backend takes uniform offsets at.
 func alignBind(n int) int {
-	return (n + 255) &^ 255
+	return (n + bindAlign - 1) &^ (bindAlign - 1)
 }
 
 // vertexSpace makes room for n bytes of batched vertices of stride bytes,
 // returning where: a multiple of stride, for Draw's FirstVertex to point at.
 func (p *Painter) vertexSpace(n, stride int) int {
 	offset := (len(p.vertices) + stride - 1) / stride * stride
-	if offset+n > int(p.vertexBuf.Size()) {
+	if u64(offset+n) > p.vertexBuf.Size() {
 		p.submit()
 		offset = 0
-		if n > int(p.vertexBuf.Size()) {
+		if u64(n) > p.vertexBuf.Size() {
 			// One batch larger than the whole buffer: grow it, everything
 			// recorded against the old one having just been submitted.
-			buf, err := p.gpu.device.CreateBuffer(&wgpu.BufferDescriptor{Label: "fyne vertices", Size: uint64(n) * 2, Usage: gputypes.BufferUsageVertex | gputypes.BufferUsageCopyDst})
+			buf, err := p.gpu.device.CreateBuffer(&wgpu.BufferDescriptor{Label: "fyne vertices", Size: u64(n) * 2, Usage: gputypes.BufferUsageVertex | gputypes.BufferUsageCopyDst})
 			if err != nil {
 				logError("vertex buffer", err)
 				return -1

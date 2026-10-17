@@ -167,13 +167,11 @@ func TestConcurrentProducersNeverStrandWork(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for p := 0; p < producers; p++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for i := 0; i < callsPerWriter; i++ {
 				ctx.enqueue(call{})
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

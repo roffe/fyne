@@ -3,6 +3,7 @@ package webgpu
 import (
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strings"
 	"unsafe"
@@ -15,6 +16,26 @@ import (
 // frameFormat is what everything is drawn into. Present converts it to
 // whatever the window surface wants.
 const frameFormat = gputypes.TextureFormatRGBA8Unorm
+
+// maxLOD is the sampler's level of detail clamp, WebGPU's default.
+const maxLOD = 32
+
+// u32 converts a size, offset or count, never negative nor near 2³², for the
+// GPU API.
+func u32(v int) uint32 {
+	if v < 0 || v > math.MaxUint32 {
+		return 0
+	}
+	return uint32(v)
+}
+
+// u64 converts a byte size, never negative, for the GPU API.
+func u64(v int) uint64 {
+	if v < 0 {
+		return 0
+	}
+	return uint64(v)
+}
 
 // The vector shapes, each a fragment shader over the shared Shape uniforms.
 const (
@@ -98,7 +119,6 @@ type gpu struct {
 
 	shapes                     [shapeCount]*wgpu.RenderPipeline
 	texture, blur, glyph, line *wgpu.RenderPipeline
-	blitModule                 *wgpu.ShaderModule
 	blits                      map[gputypes.TextureFormat]*wgpu.RenderPipeline
 }
 
@@ -136,11 +156,12 @@ func nextInstance() {
 // FYNE_WGPU_BACKEND names (vulkan, dx12, metal or gl), or else the platform's
 // own (Vulkan, Metal or DX12) and then OpenGL, for machines without them.
 func backendChoices() []gputypes.Backends {
-	if b := map[string]gputypes.Backends{
+	named := map[string]gputypes.Backends{
 		"vulkan": gputypes.BackendsVulkan, "dx12": gputypes.BackendsDX12,
 		"metal": gputypes.BackendsMetal, "gl": gputypes.BackendsGL,
-	}[strings.ToLower(os.Getenv("FYNE_WGPU_BACKEND"))]; b != 0 {
-		return []gputypes.Backends{b}
+	}[strings.ToLower(os.Getenv("FYNE_WGPU_BACKEND"))]
+	if named != 0 {
+		return []gputypes.Backends{named}
 	}
 	return []gputypes.Backends{gputypes.BackendsPrimary, gputypes.BackendsGL}
 }
@@ -294,7 +315,7 @@ func (g *gpu) sampler(filter gputypes.FilterMode) (*wgpu.Sampler, error) {
 		MagFilter:    filter,
 		MinFilter:    filter,
 		MipmapFilter: gputypes.FilterModeNearest,
-		LodMaxClamp:  32,
+		LodMaxClamp:  maxLOD,
 	})
 }
 
@@ -308,7 +329,7 @@ type gpuTexture struct {
 
 func (g *gpu) newTexture(w, h int, usage gputypes.TextureUsage, smp *wgpu.Sampler) (*gpuTexture, error) {
 	tex, err := g.device.CreateTexture(&wgpu.TextureDescriptor{
-		Size:          wgpu.Extent3D{Width: uint32(w), Height: uint32(h), DepthOrArrayLayers: 1},
+		Size:          wgpu.Extent3D{Width: u32(w), Height: u32(h), DepthOrArrayLayers: 1},
 		MipLevelCount: 1,
 		SampleCount:   1,
 		Dimension:     gputypes.TextureDimension2D,
@@ -341,10 +362,10 @@ func (g *gpu) newTexture(w, h int, usage gputypes.TextureUsage, smp *wgpu.Sample
 // write uploads RGBA pixels, stride bytes to a row, with their top left at x, y.
 func (g *gpu) write(t *gpuTexture, pix []uint8, stride, x, y, w, h int) {
 	err := g.queue.WriteTexture(
-		&wgpu.ImageCopyTexture{Texture: t.tex, Origin: wgpu.Origin3D{X: uint32(x), Y: uint32(y)}},
+		&wgpu.ImageCopyTexture{Texture: t.tex, Origin: wgpu.Origin3D{X: u32(x), Y: u32(y)}},
 		pix,
-		&wgpu.ImageDataLayout{BytesPerRow: uint32(stride), RowsPerImage: uint32(h)},
-		&wgpu.Extent3D{Width: uint32(w), Height: uint32(h), DepthOrArrayLayers: 1},
+		&wgpu.ImageDataLayout{BytesPerRow: u32(stride), RowsPerImage: u32(h)},
+		&wgpu.Extent3D{Width: u32(w), Height: u32(h), DepthOrArrayLayers: 1},
 	)
 	if err != nil {
 		logError("texture upload", err)

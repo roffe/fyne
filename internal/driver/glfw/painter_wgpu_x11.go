@@ -10,5 +10,5 @@ import (
 )
 
 func surfaceTarget(v *glfw.Window) wgpu.SurfaceTargetUnsafe {
-	return wgpu.SurfaceTargetFromXlibWindow(uintptr(unsafe.Pointer(glfw.GetX11Display())), uintptr(v.GetX11Window()))
+	return wgpu.SurfaceTargetFromXlibWindow(uintptr(unsafe.Pointer(glfw.GetX11Display())), uintptr(v.GetX11Window())) //nolint:gosec // G103: native handles for the surface
 }

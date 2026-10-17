@@ -27,6 +27,12 @@ import (
 
 const (
 	edgeSoftness = 0.5
+	// lineVertices is the two triangles a line is drawn as.
+	lineVertices = 6
+	// polygonPointRows is how many vec4 rows of the polygon record hold its
+	// points, two to a row, ahead of the corner radii.
+	polygonPointRows = 8
+	epsilon          = 1e-9
 
 	// glyphVertexFloats is one batched quad vertex: position in clip space,
 	// atlas texture coordinate and a straight-alpha colour.
@@ -174,9 +180,9 @@ func (p *Painter) snapshot(x, y, w, h int) {
 		return
 	}
 	enc.CopyTextureToTexture(p.frame.tex, p.blurSnap.tex, []wgpu.TextureCopy{{
-		Source:      wgpu.ImageCopyTexture{Texture: p.frame.tex, Origin: wgpu.Origin3D{X: uint32(r.Min.X), Y: uint32(r.Min.Y)}},
-		Destination: wgpu.ImageCopyTexture{Texture: p.blurSnap.tex, Origin: wgpu.Origin3D{X: uint32(r.Min.X - x), Y: uint32(r.Min.Y - y)}},
-		Size:        wgpu.Extent3D{Width: uint32(r.Dx()), Height: uint32(r.Dy()), DepthOrArrayLayers: 1},
+		Source:      wgpu.ImageCopyTexture{Texture: p.frame.tex, Origin: wgpu.Origin3D{X: u32(r.Min.X), Y: u32(r.Min.Y)}},
+		Destination: wgpu.ImageCopyTexture{Texture: p.blurSnap.tex, Origin: wgpu.Origin3D{X: u32(r.Min.X - x), Y: u32(r.Min.Y - y)}},
+		Size:        wgpu.Extent3D{Width: u32(r.Dx()), Height: u32(r.Dy()), DepthOrArrayLayers: 1},
 	}})
 	p.submit()
 }
@@ -210,7 +216,7 @@ func (p *Painter) drawLine(line *canvas.Line, pos fyne.Position, frame fyne.Size
 	col := fragmentColor(line.StrokeColor)
 	p.flushInstances() // anything queued before this line belongs under it
 	p.flushQuads()
-	for v := range 6 {
+	for v := range lineVertices {
 		pt := points[v*4:]
 		p.linePending = append(p.linePending, pt[0], pt[1], pt[2], pt[3], col[0], col[1], col[2], col[3], halfWidth, feather)
 	}
@@ -228,7 +234,7 @@ func (p *Painter) drawBezierCurve(bezierCurve *canvas.BezierCurve, pos fyne.Posi
 	if strokeWidth < 1 {
 		strokeWidth = 1
 	}
-	p1, p2, cp := paint.NormalizeBezierCurvePoints(bezierCurve.StartPoint, bezierCurve.EndPoint, bezierCurve.ControlPoints, bezierCurve.Size(), strokeWidth/2.0)
+	p1, p2, cp := paint.NormalizeBezierCurvePoints(bezierCurve.StartPoint, bezierCurve.EndPoint, bezierCurve.ControlPoints, bezierCurve.Size(), strokeWidth/2)
 	u.Params = [4]float32{p.scaled(p1.X), p.scaled(p1.Y), p.scaled(p2.X), p.scaled(p2.Y)}
 	if len(cp) > 0 {
 		u.Params2[0], u.Params2[1] = p.scaled(cp[0].X), p.scaled(cp[0].Y)
@@ -271,7 +277,7 @@ func (p *Painter) drawArbitraryPolygon(polygon *canvas.ArbitraryPolygon, pos fyn
 	for i := range numPoints {
 		u.Data[i/2][i%2*2] = p.scaled(fixedPoints[i].X)
 		u.Data[i/2][i%2*2+1] = p.scaled(fixedPoints[i].Y)
-		u.Data[8+i/4][i%4] = p.scaled(cornerRadii[i])
+		u.Data[polygonPointRows+i/4][i%4] = p.scaled(cornerRadii[i])
 	}
 
 	u.Shape.FillColor = fragmentColor(polygon.FillColor)
@@ -576,7 +582,7 @@ func (p *Painter) flushLines() {
 }
 
 func (p *Painter) drawBatch(pipe *wgpu.RenderPipeline, floats []float32, vertexFloats int, tex *wgpu.BindGroup) {
-	data := unsafe.Slice((*byte)(unsafe.Pointer(&floats[0])), len(floats)*4)
+	data := unsafe.Slice((*byte)(unsafe.Pointer(&floats[0])), len(floats)*4) //nolint:gosec // G103: the vertices go to the GPU as bytes
 	stride := vertexFloats * 4
 	offset := p.vertexSpace(len(data), stride)
 	if offset < 0 {
@@ -592,7 +598,7 @@ func (p *Painter) drawBatch(pipe *wgpu.RenderPipeline, floats []float32, vertexF
 		pass.SetVertexBuffer(0, p.vertexBuf, 0)
 		p.vertexPipe = pipe
 	}
-	pass.Draw(gputypes.DrawArgs{VertexCount: uint32(len(floats) / vertexFloats), InstanceCount: 1, FirstVertex: uint32(offset / stride)})
+	pass.Draw(gputypes.DrawArgs{VertexCount: u32(len(floats) / vertexFloats), InstanceCount: 1, FirstVertex: u32(offset / stride)})
 }
 
 // UploadGlyph copies a bitmap from the shared atlas into the texture.
@@ -682,8 +688,8 @@ func (p *Painter) imageTexture(img image.Image, smp *wgpu.Sampler) *gpuTexture {
 	var stride, w, h int
 	switch i := img.(type) {
 	case *image.Uniform:
-		r, g, b, a := i.RGBA()
-		pix, stride, w, h = []uint8{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}, 4, 1, 1
+		c, _ := color.RGBAModel.Convert(i.C).(color.RGBA)
+		pix, stride, w, h = []uint8{c.R, c.G, c.B, c.A}, 4, 1, 1
 	case *image.RGBA:
 		if len(i.Pix) == 0 { // image is empty
 			return nil
@@ -783,7 +789,7 @@ func (p *Painter) scaled(v float32) float32 {
 	return roundToPixel(v*p.pixScale, 1.0)
 }
 
-func (p *Painter) lineCoords(pos, pos1, pos2 fyne.Position, lineWidth, feather float32, frame fyne.Size) (points [24]float32, halfWidth, featherWidth float32) {
+func (p *Painter) lineCoords(pos, pos1, pos2 fyne.Position, lineWidth, feather float32, frame fyne.Size) (points [lineVertices * 4]float32, halfWidth, featherWidth float32) {
 	// Shift line coordinates so that they match the target position.
 	xPosDiff := pos.X - min(pos1.X, pos2.X)
 	yPosDiff := pos.Y - min(pos1.Y, pos2.Y)
@@ -824,7 +830,7 @@ func (p *Painter) lineCoords(pos, pos1, pos2 fyne.Position, lineWidth, feather f
 	halfWidth = (roundToPixel(lineWidth+feather, p.pixScale) * 0.5) / widthMultiplier
 	featherWidth = feather / widthMultiplier
 
-	return [24]float32{
+	return [lineVertices * 4]float32{
 		// coord x, y normal x, y
 		x1, y1, normalX, normalY,
 		x2, y2, normalX, normalY,
@@ -837,7 +843,7 @@ func (p *Painter) lineCoords(pos, pos1, pos2 fyne.Position, lineWidth, feather f
 
 // rectCoords returns the clip-space quad x1, y1 (top), x2, y2 (bottom) for a
 // texture, the texture coordinates at its corners, and the size it fills.
-func (p *Painter) rectCoords(size fyne.Size, pos fyne.Position, frame fyne.Size, fill canvas.ImageFill, aspect, pad float32) ([4]float32, [4]float32, fyne.Size) {
+func (p *Painter) rectCoords(size fyne.Size, pos fyne.Position, frame fyne.Size, fill canvas.ImageFill, aspect, pad float32) (quad, inset [4]float32, filled fyne.Size) {
 	innerSize, innerPos := rectInnerCoords(size, pos, fill, aspect)
 	pixelSize, pixelPos := roundToPixelCoords(innerSize, innerPos, p.pixScale)
 
@@ -887,7 +893,7 @@ func rectInnerCoords(size fyne.Size, pos fyne.Position, fill canvas.ImageFill, a
 	return fyne.NewSize(newWidth, newHeight), fyne.NewPos(newX, newY)
 }
 
-func (p *Painter) vecRectCoords(pos fyne.Position, rect fyne.CanvasObject, frame fyne.Size, aspect float32, shadow canvas.Shadow) ([4]float32, [4]float32) {
+func (p *Painter) vecRectCoords(pos fyne.Position, rect fyne.CanvasObject, frame fyne.Size, aspect float32, shadow canvas.Shadow) (quad, bounds [4]float32) {
 	xPad, yPad := float32(0), float32(0)
 
 	if aspect != 0 {
@@ -908,7 +914,7 @@ func (p *Painter) vecRectCoords(pos fyne.Position, rect fyne.CanvasObject, frame
 
 // vecRectCoordsWithPad returns the clip-space quad x1, y1 (top), x2, y2
 // (bottom) a shape is rasterised over, and its pixel-aligned bounds.
-func (p *Painter) vecRectCoordsWithPad(pos fyne.Position, rect fyne.CanvasObject, frame fyne.Size, xPad, yPad float32, shadow canvas.Shadow) ([4]float32, [4]float32) {
+func (p *Painter) vecRectCoordsWithPad(pos fyne.Position, rect fyne.CanvasObject, frame fyne.Size, xPad, yPad float32, shadow canvas.Shadow) (quad, bounds [4]float32) {
 	// align each edge to a pixel so that objects sharing an edge do not overlap or leave a gap
 	size := rect.Size()
 	left, top := pos.X+xPad, pos.Y+yPad
@@ -1004,5 +1010,5 @@ func createKernel(radius float32) []float32 {
 }
 
 func almostEqual(a, b float64) bool {
-	return math.Abs(a-b) < 1e-9
+	return math.Abs(a-b) < epsilon
 }

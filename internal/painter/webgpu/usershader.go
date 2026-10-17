@@ -7,10 +7,10 @@ import (
 	"image"
 	"math"
 
-	"github.com/gogpu/gputypes"
 	"github.com/gogpu/naga"
 	"github.com/gogpu/naga/ir"
 	wgpu "github.com/roffe/gowgpu"
+	"github.com/roffe/gowgpu/gputypes"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"

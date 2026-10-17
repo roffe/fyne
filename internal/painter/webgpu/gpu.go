@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/gogpu/gputypes"
 	wgpu "github.com/roffe/gowgpu"
+	"github.com/roffe/gowgpu/gputypes"
 	_ "github.com/roffe/gowgpu/hal/allbackends" // Vulkan, Metal or DX12, whichever the platform has, and OpenGL
 )
 

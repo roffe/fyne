@@ -1,4 +1,4 @@
-//go:build wgpu && x11 && !wayland && (linux || freebsd || openbsd || netbsd) && !wasm && !test_web_driver
+//go:build (wgpu || !gl) && x11 && !wayland && (linux || freebsd || openbsd || netbsd) && !wasm && !test_web_driver
 
 package glfw
 

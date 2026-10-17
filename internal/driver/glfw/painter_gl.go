@@ -1,4 +1,4 @@
-//go:build !wgpu && !wasm && !test_web_driver
+//go:build (gl || darwin) && !wgpu && !wasm && !test_web_driver
 
 package glfw
 

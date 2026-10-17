@@ -1,4 +1,4 @@
-//go:build wgpu && wayland && !x11 && (linux || freebsd || openbsd || netbsd)
+//go:build (wgpu || !gl) && wayland && !x11 && (linux || freebsd || openbsd || netbsd)
 
 package glfw
 

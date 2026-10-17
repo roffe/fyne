@@ -1,4 +1,4 @@
-//go:build wgpu && !wasm && !test_web_driver
+//go:build (wgpu || !(gl || darwin)) && !wasm && !test_web_driver
 
 package glfw
 
@@ -8,8 +8,10 @@ import (
 	"fyne.io/fyne/v2/internal/painter/webgpu"
 )
 
-// With the wgpu tag windows get no GL context: GLFW only provides the native
-// window and its input, and the WebGPU painter presents to a surface on it.
+// WebGPU is the default painter except on macOS, which keeps GL until Metal
+// has been run (-tags wgpu opts in there); -tags gl keeps GL everywhere.
+// Windows get no GL context: GLFW only provides the native window and its
+// input, and the WebGPU painter presents to a surface on it.
 
 func initWindowHints() {
 	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)

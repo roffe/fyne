@@ -8,7 +8,6 @@ import (
 	fynedriver "fyne.io/fyne/v2/driver"
 	intdriver "fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/internal/painter"
-	"fyne.io/fyne/v2/internal/painter/software"
 	intRepo "fyne.io/fyne/v2/internal/repository"
 	"fyne.io/fyne/v2/storage/repository"
 )
@@ -88,7 +87,7 @@ func (d *driver) CanvasForObject(fyne.CanvasObject) fyne.Canvas {
 func (d *driver) CreateWindow(title string) fyne.Window {
 	p := d.painter
 	if p == nil {
-		p = software.NewPainter()
+		p = newPainter()
 	}
 	c := NewCanvasWithPainter(p)
 	w := &window{canvas: c, driver: d, title: title}

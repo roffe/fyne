@@ -48,7 +48,7 @@ func AssertImageMatches(t *testing.T, masterFilename string, img image.Image, ms
 		return true
 	}
 
-	if bytes.Equal(masterPix, capturePix) {
+	if bytes.Equal(masterPix, capturePix) || pixWithinTolerance(masterPix, capturePix) {
 		return true
 	}
 

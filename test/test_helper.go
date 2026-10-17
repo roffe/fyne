@@ -17,7 +17,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/internal"
 	"fyne.io/fyne/v2/internal/cache"
-	"fyne.io/fyne/v2/internal/painter/software"
 	"fyne.io/fyne/v2/internal/test"
 )
 
@@ -39,7 +38,7 @@ func AssertCanvasTappableAt(t *testing.T, c fyne.Canvas, pos fyne.Position) bool
 //
 // Since 2.3
 func AssertObjectRendersToImage(t *testing.T, masterFilename string, o fyne.CanvasObject, msgAndArgs ...any) bool {
-	c := NewCanvasWithPainter(software.NewPainter())
+	c := NewCanvasWithPainter(newPainter())
 	c.SetPadded(false)
 	size := internal.MaxSizes(o.MinSize(), o.Size())
 	c.SetContent(o)

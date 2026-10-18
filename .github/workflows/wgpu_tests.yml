@@ -1,0 +1,52 @@
+name: WebGPU Tests
+on: [push, pull_request]
+permissions:
+  contents: read
+
+# fyne's image tests drawn by the WebGPU painter (-tags wgputest), on Mesa's
+# CPU drivers: lavapipe for Vulkan and llvmpipe for GL. The runner has no GPU
+# and no display, so GL goes through EGL's surfaceless platform.
+jobs:
+  wgputest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [vulkan, gl]
+    env:
+      FYNE_WGPU_BACKEND: ${{ matrix.backend }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Get dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends libvulkan1 mesa-vulkan-drivers libegl1 libegl-mesa0 libgl1-mesa-dri language-pack-en fonts-noto-cjk
+          echo "LANG=en_US.UTF-8" >> "$GITHUB_ENV"
+
+      # -v so the log shows the "Renderer:" line, which names the driver.
+      - name: Painter tests
+        run: go test -v ./internal/painter/webgpu/
+
+      # Test_colorButton_Layout/primary_hovered: a hovered colour button has a
+      # translucent stroke, which the GL painter draws without the fill under
+      # it, and the WebGPU painter draws the same. The master image comes from
+      # the software painter, which draws the stroke over the fill.
+      - name: Image tests
+        run: go test -tags wgputest -skip 'Test_colorButton_Layout/primary_hovered' ./widget/... ./canvas/... ./container/... ./dialog/... ./layout/... ./internal/widget/... ./test/... ./theme/...
+
+      - name: Upload failed testdata
+        uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: failed-testdata-${{ matrix.backend }}
+          path: |
+            **/testdata/failed
+          retention-days: 1
+          if-no-files-found: ignore

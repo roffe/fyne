@@ -1,3 +1,5 @@
+//go:build !((ios || (android && (arm64 || amd64))) && wgpu)
+
 package mobile
 
 import (

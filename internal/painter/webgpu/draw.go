@@ -259,8 +259,11 @@ func (p *Painter) drawArbitraryPolygon(polygon *canvas.ArbitraryPolygon, pos fyn
 	u.Shape.Params[0] = float32(numPoints)
 
 	size := polygon.Size()
-	fixedPoints := make([]fyne.Position, numPoints)
-	cornerRadii := make([]float32, numPoints)
+	// On the stack: a polygon has at most ArbitraryPolygonVerticesMaximum points.
+	var pointsBuf [paint.ArbitraryPolygonVerticesMaximum]fyne.Position
+	var radiiBuf [paint.ArbitraryPolygonVerticesMaximum]float32
+	fixedPoints := pointsBuf[:numPoints]
+	cornerRadii := radiiBuf[:numPoints]
 	for i := range numPoints {
 		px, py := polygon.Points[i].X, polygon.Points[i].Y
 		if polygon.NormalizedPoints {

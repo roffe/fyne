@@ -43,8 +43,9 @@ const (
 	// WebGPU's COPY_BYTES_PER_ROW_ALIGNMENT.
 	copyRowAlign = 256
 	// arenaSize is the uniform and the starting vertex buffer size. A frame
-	// that needs more is submitted in parts.
-	arenaSize = 1 << 20
+	// that needs more is submitted in parts: 4 MiB holds the records of
+	// 20000 shapes, where 1 MiB made such a frame four submits.
+	arenaSize = 4 << 20
 )
 
 // Painter draws a Fyne canvas with WebGPU.

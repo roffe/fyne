@@ -28,7 +28,6 @@ import (
 	"fyne.io/fyne/v2/internal/driver/mobile/gl"
 	"fyne.io/fyne/v2/internal/goos"
 	"fyne.io/fyne/v2/internal/painter"
-	pgl "fyne.io/fyne/v2/internal/painter/gl"
 	"fyne.io/fyne/v2/internal/scale"
 	"fyne.io/fyne/v2/theme"
 )
@@ -52,8 +51,9 @@ type ConfiguredDriver interface {
 }
 
 type driver struct {
-	app   app.App
-	glctx gl.Context
+	app          app.App
+	glctx        gl.Context
+	painterState //nolint:unused // empty with GL, see painter_gl.go
 
 	windows     []fyne.Window
 	device      device
@@ -112,7 +112,7 @@ func (d *driver) CreateWindow(title string) fyne.Window {
 	c, _ := newCanvas(fyne.CurrentDevice()).(*canvas)
 	ret := &window{title: title, canvas: c, isChild: len(d.windows) > 0}
 	c.applyContent(&fynecanvas.Rectangle{FillColor: theme.Color(theme.ColorNameBackground)})
-	c.SetPainter(pgl.NewPainter(c, ret))
+	c.SetPainter(newPainter(c, ret))
 	d.windows = append(d.windows, ret)
 	return ret
 }
@@ -301,13 +301,13 @@ func (d *driver) handleLifecycle(e lifecycle.Event, w *window) {
 	}
 	switch e.Crosses(lifecycle.StageVisible) {
 	case lifecycle.CrossOn:
-		d.glctx, _ = e.DrawContext.(gl.Context)
+		d.setDrawContext(e.DrawContext)
 		// this is a fix for some android phone to prevent the app from being drawn as a blank screen after being pushed in the background
 		c.Content().Refresh()
 
 		d.sendPaintEvent()
 	case lifecycle.CrossOff:
-		d.glctx = nil
+		d.dropDrawContext()
 	}
 	switch e.Crosses(lifecycle.StageFocused) {
 	case lifecycle.CrossOn: // foregrounding
@@ -316,14 +316,15 @@ func (d *driver) handleLifecycle(e lifecycle.Event, w *window) {
 		}
 	case lifecycle.CrossOff: // will enter background
 		if runtime.GOOS == goos.Darwin || runtime.GOOS == goos.IOS {
-			if d.glctx == nil {
+			if !d.canPaint() {
 				return
 			}
 
 			s := fyne.NewSize(float32(d.currentSize.WidthPx)/c.scale, float32(d.currentSize.HeightPx)/c.scale)
 			app.BeginPaint()
+			d.prepareSurface(w)
 			d.paintWindow(w, s)
-			d.app.Publish()
+			d.present(c)
 		}
 		if f := fyne.CurrentApp().Lifecycle().(*intapp.Lifecycle).OnExitedForeground(); f != nil {
 			f()
@@ -337,7 +338,7 @@ func (d *driver) handlePaint(e paint.Event, w *window) {
 		w.handle = e.Window
 	}
 	d.painting = false
-	if d.glctx == nil || e.External {
+	if !d.canPaint() || e.External {
 		return
 	}
 
@@ -352,6 +353,7 @@ func (d *driver) handlePaint(e paint.Event, w *window) {
 	// Everything below queues GL calls that only the UI thread can run, and it blocks on each one.
 	app.BeginPaint()
 
+	d.prepareSurface(w)
 	if needsInit {
 		c.initialized = true
 		c.Painter().Init() // we cannot init until the context is set above
@@ -365,7 +367,7 @@ func (d *driver) handlePaint(e paint.Event, w *window) {
 	}
 
 	d.paintWindow(w, newSize)
-	d.app.Publish()
+	d.present(c)
 	w.updateAccessibility()
 	cache.Clean(true)
 }
@@ -389,10 +391,7 @@ func (d *driver) paintWindow(window fyne.Window, s fyne.Size) {
 
 	c.Painter().SetOutputSize(d.currentSize.WidthPx, d.currentSize.HeightPx)
 
-	r, g, b, a := theme.Color(theme.ColorNameBackground).RGBA()
-	max16bit := float32(255 * 255)
-	d.glctx.ClearColor(float32(r)/max16bit, float32(g)/max16bit, float32(b)/max16bit, float32(a)/max16bit)
-	d.glctx.Clear(gl.ColorBufferBit)
+	d.clearFrame(c)
 
 	draw := func(node *common.RenderCacheNode, pos fyne.Position) {
 		obj := node.Obj()

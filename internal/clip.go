@@ -5,19 +5,22 @@ import "fyne.io/fyne/v2"
 // ClipStack keeps track of the areas that should be clipped when drawing a canvas.
 // If no clips are present then adding one will be added as-is.
 // Subsequent items pushed will be completely within the previous clip.
+//
+// The items live in the stack's own storage: a paint pushes and pops a clip
+// per scroll container and entry, and an item on the heap for each was most
+// of what a frame allocated. Pointers handed out are good until the next Push.
 type ClipStack struct {
-	clips []*ClipItem
+	clips []ClipItem
 }
 
 // Pop removes the current top clip and returns it.
-func (c *ClipStack) Pop() *ClipItem {
+func (c *ClipStack) Pop() ClipItem {
 	if len(c.clips) == 0 {
-		return nil
+		return ClipItem{}
 	}
 
 	top := len(c.clips) - 1
 	ret := c.clips[top]
-	c.clips[top] = nil // release memory reference
 	c.clips = c.clips[:top]
 	return ret
 }
@@ -34,7 +37,7 @@ func (c *ClipStack) Push(p fyne.Position, s fyne.Size) *ClipItem {
 	inner := outer.Intersect(p, s)
 
 	c.clips = append(c.clips, inner)
-	return inner
+	return &c.clips[len(c.clips)-1]
 }
 
 // Top returns the current clip item - it will always be within the bounds of any parent clips.
@@ -43,7 +46,7 @@ func (c *ClipStack) Top() *ClipItem {
 		return nil
 	}
 
-	return c.clips[len(c.clips)-1]
+	return &c.clips[len(c.clips)-1]
 }
 
 // ClipItem represents a single clip in a clip stack, denoted by a size and position.
@@ -57,9 +60,9 @@ func (i *ClipItem) Rect() (fyne.Position, fyne.Size) {
 	return i.pos, i.size
 }
 
-// Intersect returns a new clip item that is the intersection of the requested parameters and this clip.
-func (i *ClipItem) Intersect(p fyne.Position, s fyne.Size) *ClipItem {
-	ret := &ClipItem{p, s}
+// Intersect returns a clip item that is the intersection of the requested parameters and this clip.
+func (i *ClipItem) Intersect(p fyne.Position, s fyne.Size) ClipItem {
+	ret := ClipItem{p, s}
 	if i == nil {
 		return ret
 	}

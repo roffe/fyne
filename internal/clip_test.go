@@ -12,7 +12,7 @@ func TestClipStack_Intersect(t *testing.T) {
 	p1 := fyne.NewPos(5, 25)
 	s1 := fyne.NewSize(100, 100)
 	c := &ClipStack{
-		clips: []*ClipItem{
+		clips: []ClipItem{
 			{p1, s1},
 		},
 	}
@@ -39,7 +39,7 @@ func TestClipStack_Pop(t *testing.T) {
 	p := fyne.NewPos(5, 5)
 	s := fyne.NewSize(100, 100)
 	c := &ClipStack{
-		clips: []*ClipItem{
+		clips: []ClipItem{
 			{p, s},
 		},
 	}

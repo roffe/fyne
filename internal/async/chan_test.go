@@ -21,15 +21,13 @@ func TestUnboundedChann(t *testing.T) {
 				// Ensure send to an unbounded channel does not block.
 				c := async.NewUnboundedChan[any]()
 				blocked := false
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					select {
 					case c.In() <- true:
 					default:
 						blocked = true
 					}
-				}()
+				})
 				wg.Wait()
 				if blocked {
 					t.Fatal("send op to an unbounded channel blocked")
@@ -41,12 +39,10 @@ func TestUnboundedChann(t *testing.T) {
 				// Ensure that receive op from unbounded chan can happen on
 				// the same goroutine of send op.
 				c := async.NewUnboundedChan[any]()
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					c.In() <- true
 					<-c.Out()
-				}()
+				})
 				wg.Wait()
 				c.Close()
 			})
@@ -96,15 +92,13 @@ func TestUnboundedChann(t *testing.T) {
 				// Ensure send to an unbounded channel does not block.
 				c := async.NewUnboundedStructChan()
 				blocked := false
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					select {
 					case c.In() <- struct{}{}:
 					default:
 						blocked = true
 					}
-				}()
+				})
 				<-c.Out()
 				wg.Wait()
 				if blocked {
@@ -117,12 +111,10 @@ func TestUnboundedChann(t *testing.T) {
 				// Ensure that receive op from unbounded chan can happen on
 				// the same goroutine of send op.
 				c := async.NewUnboundedStructChan()
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					c.In() <- struct{}{}
 					<-c.Out()
-				}()
+				})
 				wg.Wait()
 				c.Close()
 			})

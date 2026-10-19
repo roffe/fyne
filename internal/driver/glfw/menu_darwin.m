@@ -138,6 +138,21 @@ NSMenu* nativeMainMenu() {
     return [app mainMenu];
 }
 
+// refreshDarwinMenu makes the menu bar show the main menu as it is now. The
+// menu is rebuilt in place, and an active app's menu bar doesn't always
+// redraw for that: the menus stayed away until the mouse went up to the menu
+// bar. Setting the main menu anew redraws it. An inactive app's menu bar is
+// drawn when it gets activated.
+void refreshDarwinMenu() {
+    if (![NSApp isActive]) {
+        return;
+    }
+    NSMenu *menu = [nativeMainMenu() retain];
+    [NSApp setMainMenu:nil];
+    [NSApp setMainMenu:menu];
+    [menu release];
+}
+
 void resetDarwinMenu() {
     NSMenu *root = nativeMainMenu();
     NSEnumerator *items = [[root itemArray] objectEnumerator];

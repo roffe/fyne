@@ -27,6 +27,7 @@ func (*window) makeContextCurrent() {}
 
 func (w *window) swapBuffers() {
 	p, _ := w.canvas.Painter().(*webgpu.Painter)
+	followBackingScale(w.viewport)
 	p.Present()
 	if p.NeedsRepaint() { // the surface lagged the window's size, catch up next frame
 		w.canvas.SetDirty()

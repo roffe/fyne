@@ -17,6 +17,21 @@ static void *metalLayer(void *view) {
 	[v setWantsLayer:YES];
 	return layer;
 }
+
+// followBackingScale keeps the view's CAMetalLayer at the window's backing
+// scale. The layer is the view's own, not one AppKit manages, so AppKit
+// leaves its contentsScale alone when the window moves to a screen of
+// another scale, and the frame presented blurred.
+static void followBackingScale(void *view) {
+	NSView *v = (NSView *)view;
+	if (v.window == nil) {
+		return;
+	}
+	CGFloat scale = v.window.backingScaleFactor;
+	if (v.layer.contentsScale != scale) {
+		v.layer.contentsScale = scale;
+	}
+}
 */
 import "C"
 
@@ -25,8 +40,11 @@ import (
 	wgpu "github.com/roffe/gowgpu"
 )
 
-// ponytail: contentsScale is set once, so a move to a screen of another
-// scale presents blurred until the layer follows backingScaleFactor.
 func surfaceTarget(v *glfw.Window) wgpu.SurfaceTargetUnsafe {
 	return wgpu.SurfaceTargetFromMetalLayer(uintptr(C.metalLayer(v.GetCocoaView())))
+}
+
+// followBackingScale runs before every present, see the C function.
+func followBackingScale(v *glfw.Window) {
+	C.followBackingScale(v.GetCocoaView())
 }

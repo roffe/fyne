@@ -165,15 +165,13 @@ func (p *Painter) drawBlur(b *canvas.Blur, pos fyne.Position, frame fyne.Size) {
 }
 
 // snapshot copies the w by h pixels of the frame at x, y into the blur source.
-//
-// The copy is a submit of its own, as are the draws on either side of it:
-// gogpu (v0.34) tracks one usage per texture per submit, with every barrier
-// up front, so the frame cannot be drawn to and copied from, or the snapshot
-// written and sampled, within one.
-// ponytail: four submits per blur; per-pass usage scopes upstream would make
-// this one encoder with the copies between passes.
+// The copy goes between the passes in the same encoder: gowgpu scopes usage per
+// pass and per copy, and puts the barriers between them.
 func (p *Painter) snapshot(x, y, w, h int) {
-	p.submit()
+	if p.clear && p.frame != nil {
+		p.renderPass() // the copy reads the frame, so a clear still to come goes first
+	}
+	p.endPass()
 	enc := p.encoder()
 	r := image.Rect(x, y, x+w, y+h).Intersect(image.Rect(0, 0, p.width, p.height))
 	if enc == nil || r.Empty() {
@@ -184,7 +182,6 @@ func (p *Painter) snapshot(x, y, w, h int) {
 		Destination: wgpu.ImageCopyTexture{Texture: p.blurSnap.tex, Origin: wgpu.Origin3D{X: u32(r.Min.X - x), Y: u32(r.Min.Y - y)}},
 		Size:        wgpu.Extent3D{Width: u32(r.Dx()), Height: u32(r.Dy()), DepthOrArrayLayers: 1},
 	}})
-	p.submit()
 }
 
 func (p *Painter) drawCircle(circle *canvas.Circle, pos fyne.Position, frame fyne.Size) {

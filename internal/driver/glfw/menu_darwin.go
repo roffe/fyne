@@ -31,6 +31,7 @@ const void* darwinAppMenu();
 void        getTextColorRGBA(int* r, int* g, int* b, int* a);
 const void* insertDarwinMenuItem(const void* menu, const char* label, const char* keyEquivalent, unsigned int keyEquivalentModifierMask, int id, int index, bool isSeparator, const void *imageData, unsigned int imageDataLength);
 int         menuFontSize();
+void        refreshDarwinMenu();
 void        resetDarwinMenu();
 
 // Used for tests.
@@ -294,6 +295,7 @@ func menuChecked(id int) bool {
 }
 
 func setupNativeMenu(w *window, main *fyne.MainMenu) {
+	defer C.refreshDarwinMenu()
 	clearNativeMenu()
 	if main == nil {
 		return

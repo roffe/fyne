@@ -191,12 +191,15 @@ func sharedGPU(surface *wgpu.Surface) (*gpu, error) {
 	if err != nil {
 		return nil, fmt.Errorf("no WebGPU adapter: %w", err)
 	}
+	// Logged before the device is made: a driver or an implicit Vulkan layer
+	// that crashes creating it kills the process, and a crash report should
+	// still say which GPU and API it was.
+	info := adapter.Info()
+	log.Printf("Renderer: WebGPU %s on %s (%s)", info.Backend, info.Name, info.DeviceType)
 	device, err := adapter.RequestDevice(nil)
 	if err != nil {
 		return nil, err
 	}
-	info := adapter.Info()
-	log.Printf("Renderer: WebGPU %s on %s (%s)", info.Backend, info.Name, info.DeviceType)
 	g := &gpu{instance: inst, adapter: adapter, device: device, queue: device.Queue(), blits: map[gputypes.TextureFormat]*wgpu.RenderPipeline{}}
 	if err := g.init(); err != nil {
 		return nil, err

@@ -54,6 +54,23 @@ const (
 	VideoTransferHLG
 )
 
+// VideoImage is the picture of a VideoFrame in GPU memory: a two plane Vulkan
+// image, luma then interleaved chroma, on the device the painter draws with
+// (see driver/webgpu), as a video decoder sharing it leaves it. A timeline
+// semaphore orders its users.
+//
+// Since: 2.9
+type VideoImage struct {
+	// Image is the VkImage, Semaphore its timeline VkSemaphore.
+	Image, Semaphore uintptr
+
+	// Use calls read with the VkImageLayout the image is in and the value of
+	// the semaphore to wait for before reading it. When read reports that it
+	// read the image, signalling value+1 once done, Use keeps the layout it
+	// returns and moves the value on for the next user.
+	Use func(read func(layout uint32, value uint64) (newLayout uint32, ok bool))
+}
+
 // VideoFrame describes a picture held the way video decoders make it, as luma
 // and chroma planes, which painters turn into RGB as they draw it, on the GPU
 // where there is one. A player shows a video by pointing the planes at each
@@ -106,6 +123,11 @@ type VideoFrame struct {
 
 	// FillMode is how the picture fits the object's size: stretched, contained or covering.
 	FillMode ImageFill
+
+	// Image, when not nil, holds the picture on the GPU in place of the
+	// planes, its chroma interleaved and its Depth 8, as NV12, or 16, as P010.
+	// Painters drawing with another device draw nothing of it.
+	Image *VideoImage
 }
 
 // Hide will set this frame to not be visible.

@@ -1,10 +1,12 @@
 package webgpu
 
 import (
+	"sync/atomic"
 	"unsafe"
 
 	wgpu "github.com/roffe/gowgpu"
 	"github.com/roffe/gowgpu/gputypes"
+	"github.com/roffe/gowgpu/hal/vulkan"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -77,7 +79,7 @@ func (p *Painter) drawVideo(f *canvas.VideoFrame, pos fyne.Position, frame fyne.
 // videoTextures returns f's planes on the GPU, uploading them when they are
 // new or f was refreshed since, or nil if f has no picture to draw.
 func (p *Painter) videoTextures(f *canvas.VideoFrame) *gpuVideo {
-	if !paint.VideoPlanes(f) {
+	if f.Image == nil && !paint.VideoPlanes(f) || f.Image != nil && (f.Width <= 0 || f.Height <= 0) {
 		return nil
 	}
 	interleaved, wide := f.U == nil, f.Depth > 8
@@ -140,6 +142,10 @@ func (p *Painter) newVideo(w, h int, interleaved, wide bool) *gpuVideo {
 }
 
 func (p *Painter) uploadVideo(v *gpuVideo, f *canvas.VideoFrame) {
+	if f.Image != nil {
+		p.copyVideoImage(v, f.Image)
+		return
+	}
 	cw, ch := (f.Width+1)/2, (f.Height+1)/2
 	p.gpu.write(v.planes[0], f.Y, f.YStride, 0, 0, f.Width, f.Height)
 	if v.interleaved {
@@ -148,6 +154,35 @@ func (p *Painter) uploadVideo(v *gpuVideo, f *canvas.VideoFrame) {
 	}
 	p.gpu.write(v.planes[1], f.U, f.CStride, 0, 0, cw, ch)
 	p.gpu.write(v.planes[2], f.V, f.CStride, 0, 0, cw, ch)
+}
+
+// copyVideoImage copies the planes of img, on the GPU already, into v's
+// textures, ahead of the next submit, which waits for the decoder to be done
+// with it.
+func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
+	img.Use(func(layout uint32, value uint64) (uint32, bool) {
+		src := wgpu.ExternalImage{Image: img.Image, Layout: layout, Semaphore: img.Semaphore, Value: value}
+		after, err := p.gpu.queue.CopyExternalPlanes(src, v.planes[0].tex, v.planes[1].tex)
+		if err != nil {
+			logError("video image copy", err)
+			return layout, false
+		}
+		return after, true
+	})
+}
+
+// interop describes the shared device to a video decoder, nil until there is
+// one that can decode video. Atomic, as decoders ask from any goroutine.
+var interop atomic.Pointer[vulkan.Interop]
+
+// VulkanInterop returns the Vulkan device the painter draws with as a video
+// decoder sharing it needs it described, or false without one that can
+// decode video.
+func VulkanInterop() (vulkan.Interop, bool) {
+	if in := interop.Load(); in != nil {
+		return *in, true
+	}
+	return vulkan.Interop{}, false
 }
 
 // newPlane makes a texture for one plane of a video frame, which binds as part

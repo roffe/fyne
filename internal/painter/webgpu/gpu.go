@@ -11,6 +11,7 @@ import (
 	wgpu "github.com/roffe/gowgpu"
 	"github.com/roffe/gowgpu/gputypes"
 	_ "github.com/roffe/gowgpu/hal/allbackends" // Vulkan, Metal or DX12, whichever the platform has, and OpenGL
+	"github.com/roffe/gowgpu/hal/vulkan"
 )
 
 // frameFormat is what everything is drawn into. Present converts it to
@@ -221,6 +222,11 @@ func sharedGPU(surface *wgpu.Surface) (*gpu, error) {
 		return nil, err
 	}
 	shared.gpu = g
+	if d, ok := device.HalDevice().(*vulkan.Device); ok {
+		if in, ok := d.Interop(); ok {
+			interop.Store(&in)
+		}
+	}
 	return g, nil
 }
 

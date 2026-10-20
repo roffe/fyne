@@ -286,13 +286,16 @@ func (c *glCanvas) setMenuOverlay(b fyne.CanvasObject) {
 	c.menu = b
 	c.SetMenuTreeAndFocusMgr(b)
 
-	if c.menu != nil && !c.size.IsZero() {
-		c.content.Resize(c.contentSize(c.size))
-		c.content.Move(c.contentPos())
-
+	if c.size.IsZero() || c.content == nil {
+		return
+	}
+	c.content.Resize(c.contentSize(c.size))
+	c.content.Move(c.contentPos())
+	if c.menu != nil {
 		c.menu.Refresh()
 		c.menu.Resize(fyne.NewSize(c.size.Width, c.menu.MinSize().Height))
 	}
+	c.SetDirty()
 }
 
 func (c *glCanvas) applyThemeOutOfTreeObjects() {

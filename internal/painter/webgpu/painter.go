@@ -101,6 +101,7 @@ type Painter struct {
 	atlas                 paint.GlyphAtlas
 	atlasTex              *gpuTexture
 	quadScratch           []paint.GlyphQuad
+	pixels                []uint8                // updateImageTexture's upload scratch
 	glyphPending          []float32              // queued quads, glyphVertexFloats a vertex
 	linePending           []float32              // queued lines, lineVertexFloats a vertex
 	userShaders           map[string]*userShader // by Shader.Name, nil if it failed

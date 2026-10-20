@@ -302,6 +302,36 @@ func TestPainterMatchesSoftware(t *testing.T) {
 	}
 }
 
+// TestRefreshRegionUpdatesTexture checks that the pixels an image's
+// RefreshRegion names reach the texture it already has, as they do on the GL
+// painter, where a whole-image refresh would upload a new one.
+func TestRefreshRegionUpdatesTexture(t *testing.T) {
+	test.NewTempApp(t)
+	if _, err := sharedGPU(nil); err != nil {
+		t.Skip("no WebGPU adapter:", err)
+	}
+	red, blue := color.NRGBA{R: 255, A: 255}, color.NRGBA{B: 255, A: 255}
+	src := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	draw.Draw(src, src.Rect, image.NewUniform(red), image.Point{}, draw.Src)
+	img := canvas.NewImageFromImage(src)
+	img.ScaleMode = canvas.ImageScalePixels
+	c := test.NewCanvas()
+	c.SetPadded(false)
+	c.SetContent(img)
+	c.Resize(fyne.NewSize(4, 4))
+	p := NewPainter(c, nil)
+	p.Init()
+	defer p.Release()
+
+	paintCanvas(p, c)
+	src.Set(2, 1, blue)
+	img.RefreshRegion(image.Rect(2, 1, 3, 2))
+	got := paintCanvas(p, c)
+	if channelDiff(got.At(2, 1), blue) > 8 || channelDiff(got.At(0, 0), red) > 8 || channelDiff(got.At(3, 3), red) > 8 {
+		t.Errorf("after RefreshRegion: (2,1) %v, (0,0) %v, (3,3) %v", got.At(2, 1), got.At(0, 0), got.At(3, 3))
+	}
+}
+
 // captureSoftware renders c as the test driver does: the software painter
 // over the theme background.
 func captureSoftware(c fyne.Canvas) image.Image {

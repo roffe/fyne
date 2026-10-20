@@ -95,6 +95,8 @@ func (p *Painter) drawObject(o fyne.CanvasObject, pos fyne.Position, frame fyne.
 		p.drawBezierCurve(obj, pos, frame)
 	case *canvas.Shader:
 		p.drawShader(obj, pos, frame)
+	case *canvas.VideoFrame:
+		p.drawVideo(obj, pos, frame)
 	case *canvas.Ellipse:
 		p.drawEllipse(obj, pos, frame)
 	}
@@ -675,6 +677,10 @@ func (p *Painter) freeTexture(id cache.TextureType) {
 	if t := p.textures[id]; t != nil {
 		delete(p.textures, id)
 		p.retire(t.release)
+	}
+	if v := p.videos[id]; v != nil {
+		delete(p.videos, id)
+		p.retire(v.release)
 	}
 }
 

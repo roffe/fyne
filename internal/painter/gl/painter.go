@@ -66,6 +66,9 @@ type painter struct {
 	shaderPrograms      map[string]*shaderState // lazily compiled programs for user shaders, keyed by Shader.Name
 	stats               drawStats               // FYNE_GL_DEBUG counters
 	texScale            float32
+	video               *programState // VideoFrame's, see videoProgram
+	videoFailed         bool
+	videos              map[*canvas.VideoFrame]*glVideo
 	pixels              []uint8   // updateImageTexture's upload buffer, reused
 	vertices            []float32 // updateBuffer's upload buffer, reused
 	viewportOffsetY     int       // y of the viewport within the framebuffer (GL origin)

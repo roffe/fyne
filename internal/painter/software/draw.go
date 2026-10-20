@@ -694,3 +694,41 @@ func minInt(x, y int) int {
 	}
 	return y
 }
+
+// drawVideo converts f to RGB and scales it into place, fitted as its
+// FillMode says, the way the GPU painters do as they sample its planes.
+func drawVideo(c fyne.Canvas, f *canvas.VideoFrame, pos fyne.Position, base *image.NRGBA, clip image.Rectangle) {
+	size := f.Size()
+	if size.IsZero() || !painter.VideoPlanes(f) {
+		return
+	}
+	x, y := scale.ToScreenCoordinate(c, pos.X), scale.ToScreenCoordinate(c, pos.Y)
+	dst := image.Rect(x, y, x+scale.ToScreenCoordinate(c, size.Width), y+scale.ToScreenCoordinate(c, size.Height))
+	src := painter.VideoImage(f)
+	sr := src.Bounds()
+	aspect := painter.VideoAspect(f)
+	fit := float32(dst.Dx()) / float32(dst.Dy())
+	switch f.FillMode {
+	case canvas.ImageFillContain, canvas.ImageFillOriginal:
+		if fit > aspect {
+			w := int(float32(dst.Dy()) * aspect)
+			dst.Min.X += (dst.Dx() - w) / 2
+			dst.Max.X = dst.Min.X + w
+		} else {
+			h := int(float32(dst.Dx()) / aspect)
+			dst.Min.Y += (dst.Dy() - h) / 2
+			dst.Max.Y = dst.Min.Y + h
+		}
+	case canvas.ImageFillCover:
+		if fit > aspect {
+			h := int(float32(sr.Dy()) * aspect / fit)
+			sr.Min.Y += (sr.Dy() - h) / 2
+			sr.Max.Y = sr.Min.Y + h
+		} else {
+			w := int(float32(sr.Dx()) * fit / aspect)
+			sr.Min.X += (sr.Dx() - w) / 2
+			sr.Max.X = sr.Min.X + w
+		}
+	}
+	draw.ApproxBiLinear.Scale(base.SubImage(clip).(draw.Image), dst, src, sr, draw.Over, nil)
+}

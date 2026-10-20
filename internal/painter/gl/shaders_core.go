@@ -31,6 +31,8 @@ var (
 	shaderFragRoundRectangle []byte
 	//go:embed shaders/simple.frag
 	shaderFragSimple []byte
+	//go:embed shaders/video.frag
+	shaderFragVideo []byte
 
 	//go:embed shaders/glyph.vert
 	shaderVertGlyph []byte

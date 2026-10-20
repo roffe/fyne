@@ -61,6 +61,7 @@ func (p *painter) freeTexture(obj fyne.CanvasObject) {
 		return
 	}
 
+	p.freeVideo(obj)
 	if cache.IsValid(texture) {
 		p.ctx.DeleteTexture(Texture(texture))
 		p.logError()

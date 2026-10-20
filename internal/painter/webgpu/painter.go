@@ -100,7 +100,8 @@ type Painter struct {
 	offset                [1]uint32       // the dynamic offset of a bind, see dynamicOffset
 	empty                 *gpuTexture     // bound for draws that sample nothing
 	textures              map[cache.TextureType]*gpuTexture
-	garbage               []func() // releases waiting for the next submit
+	videos                map[cache.TextureType]*gpuVideo // registered in the cache like textures
+	garbage               []func()                        // releases waiting for the next submit
 	blurSnap              *gpuTexture
 	atlas                 paint.GlyphAtlas
 	atlasTex              *gpuTexture
@@ -120,7 +121,7 @@ var nextTexture uint32
 // NewPainter returns a painter for c that presents to the window target names,
 // or one that only draws offscreen, for Capture, when target is nil.
 func NewPainter(c fyne.Canvas, target *wgpu.SurfaceTargetUnsafe) *Painter {
-	p := &Painter{canvas: c, target: target, textures: map[cache.TextureType]*gpuTexture{}, userShaders: map[string]*userShader{}}
+	p := &Painter{canvas: c, target: target, textures: map[cache.TextureType]*gpuTexture{}, videos: map[cache.TextureType]*gpuVideo{}, userShaders: map[string]*userShader{}}
 	p.SetFrameBufferScale(1)
 	return p
 }
@@ -489,6 +490,9 @@ func (p *Painter) Release() {
 		p.enc = nil
 	}
 	for id := range p.textures {
+		p.freeTexture(id)
+	}
+	for id := range p.videos {
 		p.freeTexture(id)
 	}
 	for _, release := range p.garbage {

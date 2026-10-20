@@ -42,6 +42,7 @@ func TestUniformsMatchShaders(t *testing.T) {
 		{shaderTexture, "Tex", texParams{}},
 		{shaderBlur, "Blur", blurParams{}},
 		{shaderUserPrelude, "Fyne", userParams{}},
+		{shaderVideo, "Video", videoParams{}},
 	} {
 		start := strings.Index(c.src, "struct "+c.name+" {")
 		end := strings.Index(c.src[start:], "\n}")

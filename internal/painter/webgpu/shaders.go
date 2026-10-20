@@ -31,4 +31,6 @@ var (
 	shaderTexture string
 	//go:embed shaders/user_prelude.wgsl
 	shaderUserPrelude string
+	//go:embed shaders/video.wgsl
+	shaderVideo string
 )

@@ -120,6 +120,11 @@ type gpu struct {
 	shapes                     [shapeCount]*wgpu.RenderPipeline
 	texture, blur, glyph, line *wgpu.RenderPipeline
 	blits                      map[gputypes.TextureFormat]*wgpu.RenderPipeline
+
+	// video draws VideoFrames, see videoPipeline
+	video       *wgpu.RenderPipeline
+	videoLayout *wgpu.BindGroupLayout
+	videoErr    error
 }
 
 // shared is the process' one device. ponytail: never released, like the
@@ -387,7 +392,9 @@ func (g *gpu) write(t *gpuTexture, pix []uint8, stride, x, y, w, h int) {
 }
 
 func (t *gpuTexture) release() {
-	t.group.Release()
+	if t.group != nil {
+		t.group.Release()
+	}
 	t.view.Release()
 	t.tex.Release()
 }

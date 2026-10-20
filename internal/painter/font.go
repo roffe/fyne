@@ -142,7 +142,10 @@ func CachedFontFace(style fyne.TextStyle, source fyne.Resource, o fyne.CanvasObj
 		scope = cache.WidgetScopeID(o)
 	}
 
-	val, ok := fontCache.Load(cacheID{style: style, scope: scope})
+	id := cacheID{style: style, scope: scope}
+	fontCacheMu.RLock()
+	val, ok := fontCache[id]
+	fontCacheMu.RUnlock()
 	if !ok {
 		var faces *dynamicFontMap
 
@@ -183,7 +186,9 @@ func CachedFontFace(style fyne.TextStyle, source fyne.Resource, o fyne.CanvasObj
 		}
 
 		val = &FontCacheItem{Fonts: faces}
-		fontCache.Store(cacheID{style: style, scope: scope}, val)
+		fontCacheMu.Lock()
+		fontCache[id] = val
+		fontCacheMu.Unlock()
 	}
 
 	return val
@@ -191,12 +196,15 @@ func CachedFontFace(style fyne.TextStyle, source fyne.Resource, o fyne.CanvasObj
 
 // ClearFontCache is used to remove cached fonts in the case that we wish to re-load Font faces
 func ClearFontCache() {
-	fontCache.Clear()
+	fontCacheMu.Lock()
+	clear(fontCache)
+	fontCacheMu.Unlock()
 	fontCustomCache.Clear()
 	parsedFonts.Clear()
 
 	runBufferMut.Lock()
 	clear(shapeCache)
+	clear(spaceCache)
 	runBufferMut.Unlock()
 }
 
@@ -379,12 +387,26 @@ type shapeKey struct {
 // 4096 strings of a dozen glyphs is about 4MB.
 const shapeCacheMax = 4096
 
+// spaceKey identifies the shaped space of one face list at one size, which
+// every string's tabs and line bounds are taken from.
+type spaceKey struct {
+	faces *dynamicFontMap
+	size  fixed.Int26_6
+}
+
 var (
 	runBuffer []shapedRun
 	// shapeCache holds strings shaped for measuring until they are drawn, and
 	// the other way round.
 	shapeCache = make(map[shapeKey]*shapedString)
-	// runBufferMut guards runBuffer, shapeCache and the shared shaper.
+	// spaceCache holds the shaped space per face list and size: shaping it
+	// again for every new string of a live label cost as much as the string.
+	spaceCache = make(map[spaceKey]shaping.Output)
+	// segmenter splits strings into runs for the shaper. One for all, as it
+	// keeps its buffers between calls.
+	segmenter shaping.Segmenter
+	// runBufferMut guards runBuffer, shapeCache, spaceCache, segmenter and
+	// the shared shaper.
 	runBufferMut async.Mutex
 )
 
@@ -452,20 +474,23 @@ func shapeString(faces shaping.Fontmap, s string, textSize fixed.Int26_6) *shape
 	}
 
 	in := shaping.Input{
-		Text:      []rune{' '},
-		RunStart:  0,
-		RunEnd:    1,
 		Direction: di.DirectionLTR,
 		Face:      faces.ResolveFace(' '),
 		Size:      textSize,
 	}
-	shaped := &shapedString{space: shaper.Shape(in)}
+	sk := spaceKey{faces: key.faces, size: textSize}
+	space, ok := spaceCache[sk]
+	if !ok {
+		in.Text, in.RunStart, in.RunEnd = []rune{' '}, 0, 1
+		space = shaper.Shape(in)
+		if sk.faces != nil {
+			spaceCache[sk] = space
+		}
+	}
+	shaped := &shapedString{space: space}
 
-	in.Text = runes
-	in.RunStart = 0
-	in.RunEnd = len(runes)
-	segmenter := &shaping.Segmenter{}
-	for _, in := range splitEmojiSequences(in, faces, segmenter) {
+	in.Text, in.RunStart, in.RunEnd = runes, 0, len(runes)
+	for _, in := range splitEmojiSequences(in, faces, &segmenter) {
 		inEnd := in.RunEnd
 
 		pending := false
@@ -676,7 +701,11 @@ type cacheID struct {
 }
 
 var (
-	fontCache       async.Map[cacheID, *FontCacheItem]
+	// fontCache is a typed map under a lock: it is read for every string
+	// drawn, and the generic map hashed its struct key field by field on
+	// every lookup.
+	fontCacheMu     sync.RWMutex
+	fontCache       = map[cacheID]*FontCacheItem{}
 	fontCustomCache async.Map[fyne.Resource, *FontCacheItem] // for custom resources
 
 	// parsedFonts holds each font resource parsed once. Every style's face list

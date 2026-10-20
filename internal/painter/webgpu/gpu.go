@@ -130,11 +130,22 @@ var shared struct {
 	choice   int // index into backendChoices of instance
 }
 
+// PinnedThread is set by a driver that drives the painter from one goroutine
+// locked to its OS thread for the life of the process, which lets the GL
+// backend keep its context current there instead of binding and unbinding
+// it around every operation. The test driver's goroutines come and go, so it
+// leaves this off.
+var PinnedThread bool
+
 // instance returns the instance of the backends being tried, see
 // nextInstance.
 func instance() (*wgpu.Instance, error) {
 	if shared.instance == nil {
-		inst, err := wgpu.CreateInstance(&wgpu.InstanceDescriptor{Backends: backendChoices()[shared.choice]})
+		desc := &wgpu.InstanceDescriptor{Backends: backendChoices()[shared.choice]}
+		if PinnedThread {
+			desc.Flags |= gputypes.InstanceFlagsGLPinnedThread
+		}
+		inst, err := wgpu.CreateInstance(desc)
 		if err != nil {
 			return nil, err
 		}

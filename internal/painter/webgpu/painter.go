@@ -80,9 +80,13 @@ type Painter struct {
 	bound      *wgpu.BindGroup      // group 1 bound in pass
 	// uniformsBound is whether group 0 is bound in pass, at any offset
 	uniformsBound bool
-	// vertexBound is whether vertexBuf is bound in pass: batches pick their
-	// vertices with FirstVertex, so it is bound once per pass.
-	vertexBound bool
+	// vertexPipe is the pipeline vertexBuf was bound under in pass, nil if
+	// not yet. Batches pick their vertices with FirstVertex rather than
+	// rebinding it at an offset, but gowgpu's GL backend sets the vertex
+	// attributes from the pipeline current at the bind, so a pipeline
+	// change rebinds: a line batch drawn with the glyph layout read past the
+	// buffer and crashed llvmpipe.
+	vertexPipe *wgpu.RenderPipeline
 
 	// The instanced draw being collected: batchN records of one pipeline and
 	// texture, back to back in uniforms from batchStart.
@@ -765,7 +769,7 @@ func (p *Painter) renderPass() *wgpu.RenderPassEncoder {
 		p.warnDevice.Do(func() { logError("render pass", err) })
 		return nil
 	}
-	p.pass, p.pipe, p.bound, p.uniformsBound, p.vertexBound, p.clear = pass, nil, nil, false, false, false
+	p.pass, p.pipe, p.bound, p.uniformsBound, p.vertexPipe, p.clear = pass, nil, nil, false, nil, false
 	p.scissor = image.Rect(0, 0, p.width, p.height) // where a pass starts
 	// The frame is the drawable, which on X11 is the window's size while the
 	// canvas has yet to catch up with a resize: the content keeps its scale

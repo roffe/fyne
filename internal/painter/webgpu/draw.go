@@ -202,7 +202,48 @@ func (p *Painter) drawCircle(circle *canvas.Circle, pos fyne.Position, frame fyn
 }
 
 func (p *Painter) drawImage(img *canvas.Image, pos fyne.Position, frame fyne.Size) {
+	if dirty := cache.TakeTextureDirty(img); !dirty.Empty() && !p.updateImageTexture(img, dirty) {
+		p.Free(img) // so that all of its pixels are uploaded again
+	}
 	p.drawTextureWithDetails(img, p.newImageTexture, pos, img.Size(), frame, img.FillMode, float32(img.Alpha()), 0)
+}
+
+// updateImageTexture uploads the pixels in the region dirty of img into the
+// texture it already has. It returns false if that texture cannot be updated
+// in part, as it was not uploaded from pixels laid out like those of img.Image.
+func (p *Painter) updateImageTexture(img *canvas.Image, dirty image.Rectangle) bool {
+	id, ok := cache.GetTexture(img)
+	t, src := p.textures[id], img.Image
+	if !ok || t == nil || src == nil {
+		return false
+	}
+	bounds := src.Bounds()
+	if _, uniform := src.(*image.Uniform); uniform || bounds.Dx() != t.w || bounds.Dy() != t.h {
+		return false
+	}
+	dirty = dirty.Intersect(bounds)
+	if dirty.Empty() {
+		return true
+	}
+
+	// The rows go up as they are when the image holds them whole; otherwise
+	// the region is drawn into a tight copy first.
+	rgba, ok := src.(*image.RGBA)
+	off := 0
+	if ok {
+		off = rgba.PixOffset(dirty.Min.X, dirty.Min.Y)
+	}
+	if !ok || off+dirty.Dy()*rgba.Stride > len(rgba.Pix) {
+		part := &image.RGBA{Rect: dirty, Stride: 4 * dirty.Dx()}
+		if size := part.Stride * dirty.Dy(); cap(p.pixels) < size {
+			p.pixels = make([]uint8, size)
+		}
+		part.Pix = p.pixels[:part.Stride*dirty.Dy()]
+		draw.Draw(part, dirty, src, dirty.Min, draw.Src)
+		rgba, off = part, 0
+	}
+	p.gpu.write(t, rgba.Pix[off:off+dirty.Dy()*rgba.Stride], rgba.Stride, dirty.Min.X-bounds.Min.X, dirty.Min.Y-bounds.Min.Y, dirty.Dx(), dirty.Dy())
+	return true
 }
 
 func (p *Painter) drawLine(line *canvas.Line, pos fyne.Position, frame fyne.Size) {

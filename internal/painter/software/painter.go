@@ -60,6 +60,8 @@ func (*Painter) Paint(c fyne.Canvas) image.Image {
 			drawBezierCurve(c, o, pos, base, clip)
 		case *canvas.Ellipse:
 			drawEllipse(c, o, pos, base, clip)
+		case *canvas.VideoFrame:
+			drawVideo(c, o, pos, base, clip)
 		}
 
 		return false

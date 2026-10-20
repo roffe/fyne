@@ -80,11 +80,9 @@ type Painter struct {
 	bound      *wgpu.BindGroup      // group 1 bound in pass
 	// uniformsBound is whether group 0 is bound in pass, at any offset
 	uniformsBound bool
-	// vertexPipe is the pipeline vertexBuf was bound under in pass, nil if
-	// not yet. Batches pick their vertices with FirstVertex rather than
-	// rebinding it at an offset, but gogpu's DX12 backend takes the stride
-	// from the pipeline current at the bind, so a pipeline change rebinds.
-	vertexPipe *wgpu.RenderPipeline
+	// vertexBound is whether vertexBuf is bound in pass: batches pick their
+	// vertices with FirstVertex, so it is bound once per pass.
+	vertexBound bool
 
 	// The instanced draw being collected: batchN records of one pipeline and
 	// texture, back to back in uniforms from batchStart.
@@ -94,8 +92,9 @@ type Painter struct {
 
 	uniforms, vertices    []byte // this submission's, see submit
 	uniformBuf, vertexBuf *wgpu.Buffer
-	uniformGroups         []*wgpu.BindGroup // per 256 byte offset, see uniformGroup
-	empty                 *gpuTexture       // bound for draws that sample nothing
+	uniformGroup          *wgpu.BindGroup // the bind window of uniformBuf, see bind
+	offset                [1]uint32       // the dynamic offset of a bind, see dynamicOffset
+	empty                 *gpuTexture     // bound for draws that sample nothing
 	textures              map[cache.TextureType]*gpuTexture
 	garbage               []func() // releases waiting for the next submit
 	blurSnap              *gpuTexture
@@ -145,8 +144,13 @@ func (p *Painter) setup() (err error) {
 	if p.vertexBuf, err = dev.CreateBuffer(&wgpu.BufferDescriptor{Label: "fyne vertices", Size: arenaSize, Usage: gputypes.BufferUsageVertex | gputypes.BufferUsageCopyDst}); err != nil {
 		return err
 	}
-	p.uniformGroups = make([]*wgpu.BindGroup, (arenaSize-bindWindow)/bindAlign+1)
-	if p.uniformGroups[0], err = p.newUniformGroup(0); err != nil {
+	// One bind group covers the whole arena: a bind picks its window with a
+	// dynamic offset, which every backend takes at bindAlign.
+	p.uniformGroup, err = dev.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Layout:  p.gpu.uniformLayout,
+		Entries: []wgpu.BindGroupEntry{{Binding: 0, Buffer: p.uniformBuf, Size: bindWindow}},
+	})
+	if err != nil {
 		return err
 	}
 	p.empty, err = p.gpu.newTexture(1, 1, 0, p.gpu.nearest)
@@ -361,7 +365,7 @@ func (p *Painter) drawToSurface() error {
 		return err
 	}
 	pass.SetPipeline(pipe)
-	pass.SetBindGroup(0, p.uniformGroups[0], nil)
+	pass.SetBindGroup(0, p.uniformGroup, p.dynamicOffset(0))
 	pass.SetBindGroup(1, p.frame.group, nil)
 	pass.Draw(gputypes.DrawArgs{VertexCount: 3, InstanceCount: 1})
 	endErr := pass.End()
@@ -501,12 +505,10 @@ func (p *Painter) Release() {
 			b.Release()
 		}
 	}
-	for _, g := range p.uniformGroups {
-		if g != nil {
-			g.Release()
-		}
+	if p.uniformGroup != nil {
+		p.uniformGroup.Release()
 	}
-	p.uniformBuf, p.vertexBuf, p.uniformGroups = nil, nil, nil
+	p.uniformBuf, p.vertexBuf, p.uniformGroup = nil, nil, nil
 	if p.surface != nil {
 		p.surface.Release()
 		p.surface = nil
@@ -588,8 +590,7 @@ func (p *Painter) applyScissor(pass *wgpu.RenderPassEncoder) {
 }
 
 // anyUniforms is the offset a draw that reads no uniforms binds at: any
-// record already bound will do. Every Vulkan command costs gogpu allocations,
-// so batches skip what they do not need.
+// record already bound will do, so batches skip the bind.
 const anyUniforms = ^uint32(0)
 
 // bind readies the pass for a draw by pipe with the uniform record at offset,
@@ -605,7 +606,7 @@ func (p *Painter) bind(pass *wgpu.RenderPassEncoder, pipe *wgpu.RenderPipeline, 
 		if offset == anyUniforms {
 			offset = 0
 		}
-		pass.SetBindGroup(0, p.uniformGroup(offset), nil)
+		pass.SetBindGroup(0, p.uniformGroup, p.dynamicOffset(offset))
 		p.uniformsBound = true
 	}
 	if tex == nil {
@@ -620,27 +621,11 @@ func (p *Painter) bind(pass *wgpu.RenderPassEncoder, pipe *wgpu.RenderPipeline, 
 	}
 }
 
-// uniformGroup returns the bind group of the uniform buffer from offset on.
-// Every offset has a group of its own, made on first use and kept, because
-// gogpu's DX12 backend ignores dynamic offsets (gogpu/wgpu#343).
-func (p *Painter) uniformGroup(offset uint32) *wgpu.BindGroup {
-	i := offset / bindAlign
-	if p.uniformGroups[i] == nil {
-		g, err := p.newUniformGroup(offset)
-		if err != nil {
-			p.warnDevice.Do(func() { logError("uniform bind group", err) })
-			return p.uniformGroups[0] // wrong uniforms rather than no draw
-		}
-		p.uniformGroups[i] = g
-	}
-	return p.uniformGroups[i]
-}
-
-func (p *Painter) newUniformGroup(offset uint32) (*wgpu.BindGroup, error) {
-	return p.gpu.device.CreateBindGroup(&wgpu.BindGroupDescriptor{
-		Layout:  p.gpu.uniformLayout,
-		Entries: []wgpu.BindGroupEntry{{Binding: 0, Buffer: p.uniformBuf, Offset: uint64(offset), Size: bindWindow}},
-	})
+// dynamicOffset returns offset as the dynamic offset of a bind of the uniform
+// window, in the painter's scratch: the backends read it during the call.
+func (p *Painter) dynamicOffset(offset uint32) []uint32 {
+	p.offset[0] = offset
+	return p.offset[:]
 }
 
 // drawQuad queues one quad of pipe with the uniforms u, sampling tex. A run of
@@ -779,7 +764,7 @@ func (p *Painter) renderPass() *wgpu.RenderPassEncoder {
 		p.warnDevice.Do(func() { logError("render pass", err) })
 		return nil
 	}
-	p.pass, p.pipe, p.bound, p.uniformsBound, p.vertexPipe, p.clear = pass, nil, nil, false, nil, false
+	p.pass, p.pipe, p.bound, p.uniformsBound, p.vertexBound, p.clear = pass, nil, nil, false, false, false
 	p.scissor = image.Rect(0, 0, p.width, p.height) // where a pass starts
 	return pass
 }

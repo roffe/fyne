@@ -767,7 +767,22 @@ func (p *Painter) renderPass() *wgpu.RenderPassEncoder {
 	}
 	p.pass, p.pipe, p.bound, p.uniformsBound, p.vertexBound, p.clear = pass, nil, nil, false, false, false
 	p.scissor = image.Rect(0, 0, p.width, p.height) // where a pass starts
+	// The frame is the drawable, which on X11 is the window's size while the
+	// canvas has yet to catch up with a resize: the content keeps its scale
+	// in the top left of it rather than stretching, as the GL painter's
+	// viewport does. The shaders' pixel coordinates start at the top left
+	// too, so nothing else moves.
+	if w, h := p.canvasPixels(); (w != p.width || h != p.height) && w > 0 && h > 0 {
+		pass.SetViewport(gputypes.Viewport{Width: float32(w), Height: float32(h), MaxDepth: 1})
+	}
 	return pass
+}
+
+// canvasPixels is the canvas's size in frame pixels.
+func (p *Painter) canvasPixels() (int, int) {
+	size := p.canvas.Size()
+	return int(float32(scale.ToScreenCoordinate(p.canvas, size.Width)) * p.texScale),
+		int(float32(scale.ToScreenCoordinate(p.canvas, size.Height)) * p.texScale)
 }
 
 func (p *Painter) endPass() {

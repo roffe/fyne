@@ -469,6 +469,8 @@ func (p *painter) drawObject(o fyne.CanvasObject, pos fyne.Position, frame fyne.
 		p.drawBezierCurve(obj, pos, frame)
 	case *canvas.Shader:
 		p.drawShader(obj, pos, frame)
+	case *canvas.VideoFrame:
+		p.drawVideo(obj, pos, frame)
 	case *canvas.Ellipse:
 		p.drawEllipse(obj, pos, frame)
 	}

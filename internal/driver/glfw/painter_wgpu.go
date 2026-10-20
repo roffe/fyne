@@ -16,6 +16,14 @@ func initWindowHints() {
 	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)
 }
 
+// The driver paints and presents on the main goroutine, locked to the main
+// thread by GLFW, so the GL backend may keep its context current there.
+// Capture goes through RunWithContext on the caller's goroutine: off the
+// main goroutine it belongs inside fyne.DoAndWait, as before.
+func init() {
+	webgpu.PinnedThread = true
+}
+
 func (w *window) initPainter() {
 	target := surfaceTarget(w.viewport)
 	w.canvas.SetPainter(webgpu.NewPainter(w.canvas, &target))

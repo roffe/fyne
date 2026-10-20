@@ -214,7 +214,7 @@ func (g *gpu) init() (err error) {
 		Entries: []gputypes.BindGroupLayoutEntry{{
 			Binding:    0,
 			Visibility: gputypes.ShaderStageVertex | gputypes.ShaderStageFragment,
-			Buffer:     &gputypes.BufferBindingLayout{Type: gputypes.BufferBindingTypeUniform, MinBindingSize: bindWindow},
+			Buffer:     &gputypes.BufferBindingLayout{Type: gputypes.BufferBindingTypeUniform, MinBindingSize: bindWindow, HasDynamicOffset: true},
 		}},
 	})
 	if err != nil {

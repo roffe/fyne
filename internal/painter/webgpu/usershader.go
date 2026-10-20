@@ -80,9 +80,9 @@ func (p *Painter) drawShader(s *canvas.Shader, pos fyne.Position, frame fyne.Siz
 	}
 	p.applyScissor(pass)
 	pass.SetPipeline(us.pipeline)
-	pass.SetBindGroup(0, p.uniformGroup(fyneOffset), nil)
+	pass.SetBindGroup(0, p.uniformGroup, p.dynamicOffset(fyneOffset))
 	pass.SetBindGroup(1, group, nil)
-	pass.SetBindGroup(2, p.uniformGroup(userOffset), nil)
+	pass.SetBindGroup(2, p.uniformGroup, p.dynamicOffset(userOffset))
 	pass.Draw(gputypes.DrawArgs{VertexCount: 4, InstanceCount: 1})
 	// This pipeline's layout is its own, and on DX12 changing layouts drops
 	// every binding, so the next built-in draw binds all it needs again.

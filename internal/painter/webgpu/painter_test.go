@@ -217,6 +217,14 @@ func TestPainterMatchesSoftware(t *testing.T) {
 	}
 	boldItalic := canvas.NewText("Dd", theme.Color(theme.ColorNameForeground))
 	boldItalic.TextStyle, boldItalic.TextSize = fyne.TextStyle{Bold: true, Italic: true}, 42
+	// A glyph batch and a line batch in one pass: their vertex layouts
+	// differ, and a backend that keeps the layout of the first for the second
+	// reads past the buffer.
+	textLine := canvas.NewText("Ab", theme.Color(theme.ColorNameForeground))
+	textLine.Move(fyne.NewPos(4, 2))
+	underLine := canvas.NewLine(color.NRGBA{R: 200, A: 255})
+	underLine.StrokeWidth = 2
+	underLine.Position1, underLine.Position2 = fyne.NewPos(4, 30), fyne.NewPos(60, 30)
 
 	scenes := []struct {
 		name  string
@@ -254,6 +262,7 @@ func TestPainterMatchesSoftware(t *testing.T) {
 		{name: "blur", scene: padded(container.NewStack(blurBase, container.NewPadded(canvas.NewBlur(5))), 70)},
 		{name: "text_clipped", scene: unpadded(scrolled(widget.NewLabel("some text\nis here\nand here")), 70, 70)},
 		{name: "text_bold_italic", scene: unpadded(boldItalic, 70, boldItalic.MinSize().Height)},
+		{name: "text_and_line", scene: unpadded(container.NewWithoutLayout(textLine, underLine), 70, 40)},
 		{name: "instanced", scene: unpadded(container.NewWithoutLayout(many...), 202, 82)},
 	}
 

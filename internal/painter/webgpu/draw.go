@@ -635,9 +635,9 @@ func (p *Painter) drawBatch(pipe *wgpu.RenderPipeline, floats []float32, vertexF
 		return
 	}
 	p.bind(pass, pipe, anyUniforms, tex)
-	if !p.vertexBound {
+	if p.vertexPipe != pipe {
 		pass.SetVertexBuffer(0, p.vertexBuf, 0)
-		p.vertexBound = true
+		p.vertexPipe = pipe
 	}
 	pass.Draw(gputypes.DrawArgs{VertexCount: u32(len(floats) / vertexFloats), InstanceCount: 1, FirstVertex: u32(offset / stride)})
 }

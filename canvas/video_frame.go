@@ -54,15 +54,21 @@ const (
 	VideoTransferHLG
 )
 
-// VideoImage is the picture of a VideoFrame in GPU memory: a two plane Vulkan
-// image, luma then interleaved chroma, on the device the painter draws with
-// (see driver/webgpu), as a video decoder sharing it leaves it. A timeline
-// semaphore orders its users.
+// VideoImage is the picture of a VideoFrame in GPU memory, on the device the
+// painter draws with (see driver/webgpu): a two plane Vulkan image, luma then
+// interleaved chroma, as a video decoder sharing the device leaves it, or a
+// buffer of RGBA pixels, as another API sharing it draws them, such as an
+// OpenGL renderer. A timeline semaphore orders its users.
 //
 // Since: 2.9
 type VideoImage struct {
 	// Image is the VkImage, Semaphore its timeline VkSemaphore.
 	Image, Semaphore uintptr
+
+	// Buffer, in place of Image, is a VkBuffer holding the picture as RGBA,
+	// rows of the VideoFrame's Width pixels Stride bytes apart, top row first.
+	Buffer uintptr
+	Stride int
 
 	// Use calls read with the VkImageLayout the image is in and the value of
 	// the semaphore to wait for before reading it. When read reports that it
@@ -125,8 +131,9 @@ type VideoFrame struct {
 	FillMode ImageFill
 
 	// Image, when not nil, holds the picture on the GPU in place of the
-	// planes, its chroma interleaved and its Depth 8, as NV12, or 16, as P010.
-	// Painters drawing with another device draw nothing of it.
+	// planes, its chroma interleaved and its Depth 8, as NV12, or 16, as P010,
+	// or as RGBA in its Buffer. Painters drawing with another device draw
+	// nothing of it.
 	Image *VideoImage
 }
 

@@ -19,3 +19,13 @@ import (
 func VulkanDevice() (vulkan.Interop, bool) {
 	return painter.VulkanInterop()
 }
+
+// D3D12Device returns the ID3D12Device the WebGPU painter draws with, for
+// code making pictures for canvas.VideoFrame.Image on it, or false when
+// windows paint with something else or none has been shown yet. It is safe
+// to call from any goroutine.
+//
+// Since: 2.9
+func D3D12Device() (uintptr, bool) {
+	return painter.D3D12Device()
+}

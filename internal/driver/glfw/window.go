@@ -367,16 +367,10 @@ func (*window) findObjectAtPositionMatching(c *glCanvas, mouse fyne.Position, ma
 	return driver.FindObjectAtPositionMatching(mouse, matches, c.Overlays().Top(), c.menu, c.Content())
 }
 
-func (w *window) processMouseMoved(xpos float64, ypos float64) {
-	previousPos := w.mousePos
-	w.mousePos = fyne.NewPos(scale.ToFyneCoordinate(w.canvas, int(xpos)), scale.ToFyneCoordinate(w.canvas, int(ypos)))
-	mousePos := w.mousePos
-	mouseButton := w.mouseButton
-	mouseDragPos := w.mouseDragPos
-	mouseOver := w.mouseOver
-
+// hoverableAt returns the object the mouse hovers at mousePos, its position
+// and the cursor to show there.
+func (w *window) hoverableAt(mousePos fyne.Position) (fyne.CanvasObject, fyne.Position, desktop.Cursor) {
 	cursor := desktop.Cursor(desktop.DefaultCursor)
-
 	obj, pos, _ := w.findObjectAtPositionMatching(w.canvas, mousePos, func(object fyne.CanvasObject) bool {
 		if cursorable, ok := object.(desktop.Cursorable); ok {
 			cursor = cursorable.Cursor()
@@ -385,22 +379,45 @@ func (w *window) processMouseMoved(xpos float64, ypos float64) {
 		_, hover := object.(desktop.Hoverable)
 		return hover
 	})
+	return obj, pos, cursor
+}
 
-	if w.cursor != cursor {
-		// cursor has changed, store new cursor and apply change via glfw
-		rawCursor, isCustomCursor := fyneToNativeCursor(cursor)
-		w.cursor = cursor
-
-		if view := w.view(); view != nil { // not yet visible? linux weirdness
-			if rawCursor == nil {
-				view.SetInputMode(CursorMode, CursorHidden)
-			} else {
-				view.SetInputMode(CursorMode, CursorNormal)
-				w.SetCursor(rawCursor)
-			}
-		}
-		w.setCustomCursor(rawCursor, isCustomCursor)
+func (w *window) applyCursor(cursor desktop.Cursor) {
+	if w.cursor == cursor {
+		return
 	}
+	// cursor has changed, store new cursor and apply change via glfw
+	rawCursor, isCustomCursor := fyneToNativeCursor(cursor)
+	w.cursor = cursor
+
+	if view := w.view(); view != nil { // not yet visible? linux weirdness
+		if rawCursor == nil {
+			view.SetInputMode(CursorMode, CursorHidden)
+		} else {
+			view.SetInputMode(CursorMode, CursorNormal)
+			w.SetCursor(rawCursor)
+		}
+	}
+	w.setCustomCursor(rawCursor, isCustomCursor)
+}
+
+// refreshCursor shows the cursor of what is under the mouse, which can change
+// while the mouse is still, as content changes or picks another cursor.
+func (w *window) refreshCursor() {
+	_, _, cursor := w.hoverableAt(w.mousePos)
+	w.applyCursor(cursor)
+}
+
+func (w *window) processMouseMoved(xpos float64, ypos float64) {
+	previousPos := w.mousePos
+	w.mousePos = fyne.NewPos(scale.ToFyneCoordinate(w.canvas, int(xpos)), scale.ToFyneCoordinate(w.canvas, int(ypos)))
+	mousePos := w.mousePos
+	mouseButton := w.mouseButton
+	mouseDragPos := w.mouseDragPos
+	mouseOver := w.mouseOver
+
+	obj, pos, cursor := w.hoverableAt(mousePos)
+	w.applyCursor(cursor)
 
 	if w.mouseButton != 0 && w.mouseButton != desktop.MouseButtonSecondary && !w.mouseDragStarted {
 		obj, pos, _ := w.findObjectAtPositionMatching(w.canvas, previousPos, func(object fyne.CanvasObject) bool {

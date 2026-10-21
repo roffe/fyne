@@ -283,6 +283,33 @@ func TestWindow_Cursor(t *testing.T) {
 	})
 }
 
+func TestWindow_CursorChangesWhileMouseStill(t *testing.T) {
+	w := createWindow("Test")
+	c := &cursorObject{Rectangle: canvas.NewRectangle(color.White), cursor: desktop.DefaultCursor}
+	c.SetMinSize(fyne.NewSize(20, 20))
+	w.SetContent(c)
+	repaintWindow(w)
+	runOnMain(func() {
+		w.moveMouse(5, 5)
+		assert.Equal(t, desktop.Cursor(desktop.DefaultCursor), w.cursor)
+		c.cursor = desktop.HiddenCursor
+		w.canvas.Refresh(c)
+	})
+	repaintWindow(w)
+	runOnMain(func() {
+		assert.Equal(t, desktop.Cursor(desktop.HiddenCursor), w.cursor)
+	})
+}
+
+type cursorObject struct {
+	*canvas.Rectangle
+	cursor desktop.Cursor
+}
+
+func (c *cursorObject) Cursor() desktop.Cursor {
+	return c.cursor
+}
+
 func TestWindow_CursorUnderInnerWindow(t *testing.T) {
 	w := createWindow("Test")
 	e := widget.NewEntry()

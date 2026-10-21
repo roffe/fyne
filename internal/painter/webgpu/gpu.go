@@ -227,6 +227,9 @@ func sharedGPU(surface *wgpu.Surface) (*gpu, error) {
 			interop.Store(&in)
 		}
 	}
+	if d, ok := device.HalDevice().(interface{ D3D12Device() uintptr }); ok {
+		d3d12Device.Store(d.D3D12Device())
+	}
 	return g, nil
 }
 

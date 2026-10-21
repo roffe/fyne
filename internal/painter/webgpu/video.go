@@ -188,17 +188,26 @@ func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 }
 
 // interop describes the shared device to code drawing pictures on it, nil
-// until there is one, and d3d12Device is the ID3D12Device when the painter
-// draws with Direct3D 12. Atomic, as they are asked from any goroutine.
+// until there is one, d3d12Device is the ID3D12Device when the painter draws
+// with Direct3D 12 and metalDevice the id<MTLDevice> when it draws with
+// Metal. Atomic, as they are asked from any goroutine.
 var (
 	interop     atomic.Pointer[vulkan.Interop]
 	d3d12Device atomic.Uintptr
+	metalDevice atomic.Uintptr
 )
 
 // D3D12Device returns the ID3D12Device the painter draws with, or false
 // without one.
 func D3D12Device() (uintptr, bool) {
 	d := d3d12Device.Load()
+	return d, d != 0
+}
+
+// MetalDevice returns the id<MTLDevice> the painter draws with, or false
+// without one.
+func MetalDevice() (uintptr, bool) {
+	d := metalDevice.Load()
 	return d, d != 0
 }
 

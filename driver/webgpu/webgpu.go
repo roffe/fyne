@@ -29,3 +29,13 @@ func VulkanDevice() (vulkan.Interop, bool) {
 func D3D12Device() (uintptr, bool) {
 	return painter.D3D12Device()
 }
+
+// MetalDevice returns the id<MTLDevice> the WebGPU painter draws with, for
+// code making pictures for canvas.VideoFrame.Image on it, or false when
+// windows paint with something else or none has been shown yet. It is safe
+// to call from any goroutine.
+//
+// Since: 2.9
+func MetalDevice() (uintptr, bool) {
+	return painter.MetalDevice()
+}

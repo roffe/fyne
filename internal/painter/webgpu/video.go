@@ -176,7 +176,7 @@ func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 			src := wgpu.ExternalBuffer{Buffer: img.Buffer, BytesPerRow: uint32(img.Stride), Semaphore: img.Semaphore, Value: value}
 			err = p.gpu.queue.CopyExternalBuffer(src, v.planes[0].tex)
 		} else {
-			src := wgpu.ExternalImage{Image: img.Image, Layout: layout, Semaphore: img.Semaphore, Value: value}
+			src := wgpu.ExternalImage{Image: img.Image, Layout: layout, Slice: uint32(img.Layer), Semaphore: img.Semaphore, Value: value}
 			after, err = p.gpu.queue.CopyExternalPlanes(src, v.planes[0].tex, v.planes[1].tex)
 		}
 		if err != nil {
@@ -188,8 +188,19 @@ func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 }
 
 // interop describes the shared device to code drawing pictures on it, nil
-// until there is one. Atomic, as it is asked from any goroutine.
-var interop atomic.Pointer[vulkan.Interop]
+// until there is one, and d3d12Device is the ID3D12Device when the painter
+// draws with Direct3D 12. Atomic, as they are asked from any goroutine.
+var (
+	interop     atomic.Pointer[vulkan.Interop]
+	d3d12Device atomic.Uintptr
+)
+
+// D3D12Device returns the ID3D12Device the painter draws with, or false
+// without one.
+func D3D12Device() (uintptr, bool) {
+	d := d3d12Device.Load()
+	return d, d != 0
+}
 
 // VulkanInterop returns the Vulkan device the painter draws with as code
 // sharing it needs it described, or false without one.

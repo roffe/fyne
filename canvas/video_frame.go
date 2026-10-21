@@ -55,25 +55,30 @@ const (
 )
 
 // VideoImage is the picture of a VideoFrame in GPU memory, on the device the
-// painter draws with (see driver/webgpu): a two plane Vulkan image, luma then
+// painter draws with (see driver/webgpu): a two plane image, luma then
 // interleaved chroma, as a video decoder sharing the device leaves it, or a
 // buffer of RGBA pixels, as another API sharing it draws them, such as an
-// OpenGL renderer. A timeline semaphore orders its users.
+// OpenGL renderer. A timeline orders its users: on Vulkan a timeline
+// semaphore, on Direct3D 12 a fence.
 //
 // Since: 2.9
 type VideoImage struct {
-	// Image is the VkImage, Semaphore its timeline VkSemaphore.
+	// Image is the VkImage or ID3D12Resource, Semaphore the VkSemaphore or
+	// ID3D12Fence. Layer is the image's layer in an array of them.
 	Image, Semaphore uintptr
+	Layer            int
 
-	// Buffer, in place of Image, is a VkBuffer holding the picture as RGBA,
-	// rows of the VideoFrame's Width pixels Stride bytes apart, top row first.
+	// Buffer, in place of Image, is a VkBuffer or ID3D12Resource holding the
+	// picture as RGBA, rows of the VideoFrame's Width pixels Stride bytes
+	// apart, top row first. On Direct3D 12 Stride is a multiple of 256.
 	Buffer uintptr
 	Stride int
 
-	// Use calls read with the VkImageLayout the image is in and the value of
-	// the semaphore to wait for before reading it. When read reports that it
-	// read the image, signalling value+1 once done, Use keeps the layout it
-	// returns and moves the value on for the next user.
+	// Use calls read with the layout the image is in, the VkImageLayout or
+	// D3D12_RESOURCE_STATES, and the value of the timeline to wait for before
+	// reading it. When read reports that it read the image, signalling value+1
+	// once done, Use keeps the layout it returns and moves the value on for
+	// the next user.
 	Use func(read func(layout uint32, value uint64) (newLayout uint32, ok bool))
 }
 

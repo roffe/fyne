@@ -21,12 +21,13 @@ type videoParams struct {
 
 // gpuVideo is a VideoFrame's planes on the GPU: luma, then U and V, or the
 // interleaved chroma twice, and the group binding them. Wide samples take two
-// channels, low byte first, as the shader puts them back together.
+// channels, low byte first, as the shader puts them back together. An RGBA
+// picture is bound three times.
 type gpuVideo struct {
-	planes            [3]*gpuTexture
-	group             *wgpu.BindGroup
-	width, height     int
-	interleaved, wide bool
+	planes                  [3]*gpuTexture
+	group                   *wgpu.BindGroup
+	width, height           int
+	interleaved, wide, rgba bool
 }
 
 func (v *gpuVideo) release() {
@@ -59,6 +60,9 @@ func (p *Painter) drawVideo(f *canvas.VideoFrame, pos fyne.Position, frame fyne.
 	if v.wide {
 		u.Params[2] = 1
 	}
+	if v.rgba {
+		u.Params[3] = 1
+	}
 
 	p.flushBatch() // queued quads are underneath
 	offset := record(p, &u)
@@ -82,10 +86,10 @@ func (p *Painter) videoTextures(f *canvas.VideoFrame) *gpuVideo {
 	if f.Image == nil && !paint.VideoPlanes(f) || f.Image != nil && (f.Width <= 0 || f.Height <= 0) {
 		return nil
 	}
-	interleaved, wide := f.U == nil, f.Depth > 8
+	interleaved, wide, rgba := f.U == nil, f.Depth > 8, f.Image != nil && f.Image.Buffer != 0
 	id, ok := cache.GetTexture(f)
 	v := p.videos[id]
-	if ok && v != nil && v.width == f.Width && v.height == f.Height && v.interleaved == interleaved && v.wide == wide {
+	if ok && v != nil && v.width == f.Width && v.height == f.Height && v.interleaved == interleaved && v.wide == wide && v.rgba == rgba {
 		if !cache.TakeTextureDirty(f).Empty() {
 			p.uploadVideo(v, f)
 		}
@@ -93,7 +97,7 @@ func (p *Painter) videoTextures(f *canvas.VideoFrame) *gpuVideo {
 	}
 	p.Free(f)
 
-	if v = p.newVideo(f.Width, f.Height, interleaved, wide); v == nil {
+	if v = p.newVideo(f.Width, f.Height, interleaved, wide, rgba); v == nil {
 		return nil
 	}
 	nextTexture++
@@ -104,19 +108,24 @@ func (p *Painter) videoTextures(f *canvas.VideoFrame) *gpuVideo {
 	return v
 }
 
-func (p *Painter) newVideo(w, h int, interleaved, wide bool) *gpuVideo {
+func (p *Painter) newVideo(w, h int, interleaved, wide, rgba bool) *gpuVideo {
 	cw, ch := (w+1)/2, (h+1)/2
-	v := &gpuVideo{width: w, height: h, interleaved: interleaved, wide: wide}
+	v := &gpuVideo{width: w, height: h, interleaved: interleaved, wide: wide, rgba: rgba}
 	one, two := gputypes.TextureFormatR8Unorm, gputypes.TextureFormatRG8Unorm
 	if wide {
 		one, two = two, gputypes.TextureFormatRGBA8Unorm
+	}
+	if rgba {
+		one = gputypes.TextureFormatRGBA8Unorm
 	}
 	var err error
 	if v.planes[0], err = p.gpu.newPlane(w, h, one); err != nil {
 		logError("video plane allocation", err)
 		return nil
 	}
-	if interleaved {
+	if rgba {
+		v.planes[1], v.planes[2] = v.planes[0], v.planes[0]
+	} else if interleaved {
 		v.planes[1], err = p.gpu.newPlane(cw, ch, two)
 		v.planes[2] = v.planes[1]
 	} else if v.planes[1], err = p.gpu.newPlane(cw, ch, one); err == nil {
@@ -161,8 +170,15 @@ func (p *Painter) uploadVideo(v *gpuVideo, f *canvas.VideoFrame) {
 // with it.
 func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 	img.Use(func(layout uint32, value uint64) (uint32, bool) {
-		src := wgpu.ExternalImage{Image: img.Image, Layout: layout, Semaphore: img.Semaphore, Value: value}
-		after, err := p.gpu.queue.CopyExternalPlanes(src, v.planes[0].tex, v.planes[1].tex)
+		var err error
+		after := layout
+		if img.Buffer != 0 {
+			src := wgpu.ExternalBuffer{Buffer: img.Buffer, BytesPerRow: uint32(img.Stride), Semaphore: img.Semaphore, Value: value}
+			err = p.gpu.queue.CopyExternalBuffer(src, v.planes[0].tex)
+		} else {
+			src := wgpu.ExternalImage{Image: img.Image, Layout: layout, Semaphore: img.Semaphore, Value: value}
+			after, err = p.gpu.queue.CopyExternalPlanes(src, v.planes[0].tex, v.planes[1].tex)
+		}
 		if err != nil {
 			logError("video image copy", err)
 			return layout, false
@@ -171,13 +187,12 @@ func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 	})
 }
 
-// interop describes the shared device to a video decoder, nil until there is
-// one that can decode video. Atomic, as decoders ask from any goroutine.
+// interop describes the shared device to code drawing pictures on it, nil
+// until there is one. Atomic, as it is asked from any goroutine.
 var interop atomic.Pointer[vulkan.Interop]
 
-// VulkanInterop returns the Vulkan device the painter draws with as a video
-// decoder sharing it needs it described, or false without one that can
-// decode video.
+// VulkanInterop returns the Vulkan device the painter draws with as code
+// sharing it needs it described, or false without one.
 func VulkanInterop() (vulkan.Interop, bool) {
 	if in := interop.Load(); in != nil {
 		return *in, true

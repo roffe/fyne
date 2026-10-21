@@ -1,12 +1,14 @@
 // VideoFrames: a luma plane and chroma in two planes or one interleaved, turned
-// and converted to RGB as they are drawn. Video is mirrored by videoParams in Go.
+// and converted to RGB as they are drawn, or a picture in RGB already. Video is
+// mirrored by videoParams in Go.
 struct Video {
     // clip-space x1, y1 (top), x2, y2 (bottom) of the quad rasterised
     quad: vec4<f32>,
     // the picture's coordinates, as shown, at the quad's top left and bottom right
     inset: vec4<f32>,
     // x: clockwise quarter turns, y: 1 when chroma holds U and V interleaved,
-    // z: 1 when samples take two channels, low byte first
+    // z: 1 when samples take two channels, low byte first, w: 1 when luma
+    // holds the picture as RGB
     params: vec4<f32>,
     // each channel is dot(row.xyz, yuv) + row.w
     r: vec4<f32>,
@@ -103,6 +105,9 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
         p = vec2<f32>(1.0 - p.y, p.x);
     }
     let l = textureSampleLevel(luma, smp, p, 0.0);
+    if (u.params.w > 0.5) {
+        return vec4<f32>(l.rgb, 1.0);
+    }
     let c = textureSampleLevel(chroma, smp, p, 0.0);
     let cv = textureSampleLevel(chroma_v, smp, p, 0.0);
     var yuv = vec3<f32>(l.r, c.r, select(cv.r, c.g, u.params.y > 0.5));

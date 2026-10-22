@@ -46,6 +46,29 @@ fn vs_main(@builtin(vertex_index) i: u32, @builtin(instance_index) idx: u32) -> 
 // two bytes of a sample, as fractions of 255, to the sample as a fraction of 65535
 const bytes = vec2<f32>(1.0 / 257.0, 256.0 / 257.0);
 
+// samples16 is the two-byte samples texel t holds, one per channel pair.
+fn samples16(t: vec4<f32>) -> vec2<f32> {
+    return vec2<f32>(dot(t.rg, bytes), dot(t.ba, bytes));
+}
+
+// wide samples a plane of two-byte samples at p, bilinearly over whole
+// samples: a sampler filters the two bytes as channels of their own, at 8-bit
+// precision on some GPUs, which is a step of 256 wherever the high byte
+// changes between texels.
+fn wide(t: texture_2d<f32>, p: vec2<f32>) -> vec2<f32> {
+    let dims = vec2<i32>(textureDimensions(t));
+    let q = p * vec2<f32>(dims) - 0.5;
+    let i = floor(q);
+    let f = q - i;
+    let c0 = clamp(vec2<i32>(i), vec2<i32>(0), dims - 1);
+    let c1 = clamp(vec2<i32>(i) + 1, vec2<i32>(0), dims - 1);
+    let s00 = samples16(textureLoad(t, c0, 0));
+    let s10 = samples16(textureLoad(t, vec2<i32>(c1.x, c0.y), 0));
+    let s01 = samples16(textureLoad(t, vec2<i32>(c0.x, c1.y), 0));
+    let s11 = samples16(textureLoad(t, c1, 0));
+    return mix(mix(s00, s10, f.x), mix(s01, s11, f.x), f.y);
+}
+
 // SMPTE ST 2084's curve between signal and light, as a fraction of 10000 cd/m²
 fn pq_light(e: f32) -> f32 {
     let p = pow(clamp(e, 0.0, 1.0), 1.0 / 78.84375);
@@ -104,15 +127,19 @@ fn fs_main(in: VOut) -> @location(0) vec4<f32> {
     } else if (turns == 3u) {
         p = vec2<f32>(1.0 - p.y, p.x);
     }
-    let l = textureSampleLevel(luma, smp, p, 0.0);
     if (u.params.w > 0.5) {
-        return vec4<f32>(l.rgb, 1.0);
+        return vec4<f32>(textureSampleLevel(luma, smp, p, 0.0).rgb, 1.0);
     }
-    let c = textureSampleLevel(chroma, smp, p, 0.0);
-    let cv = textureSampleLevel(chroma_v, smp, p, 0.0);
-    var yuv = vec3<f32>(l.r, c.r, select(cv.r, c.g, u.params.y > 0.5));
+    var yuv: vec3<f32>;
     if (u.params.z > 0.5) {
-        yuv = vec3<f32>(dot(l.rg, bytes), dot(c.rg, bytes), select(dot(cv.rg, bytes), dot(c.ba, bytes), u.params.y > 0.5));
+        let l = wide(luma, p);
+        let c = wide(chroma, p);
+        yuv = vec3<f32>(l.x, c.x, select(wide(chroma_v, p).x, c.y, u.params.y > 0.5));
+    } else {
+        let l = textureSampleLevel(luma, smp, p, 0.0);
+        let c = textureSampleLevel(chroma, smp, p, 0.0);
+        let cv = textureSampleLevel(chroma_v, smp, p, 0.0);
+        yuv = vec3<f32>(l.r, c.r, select(cv.r, c.g, u.params.y > 0.5));
     }
     var rgb = vec3<f32>(dot(u.r.xyz, yuv) + u.r.w, dot(u.g.xyz, yuv) + u.g.w, dot(u.b.xyz, yuv) + u.b.w);
     rgb = clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0));

@@ -109,7 +109,7 @@ func (d *gLDriver) runGL() {
 	}
 
 	d.init()
-	startStallTimer()
+	startStallTimer(d)
 	if d.trayStart != nil {
 		d.trayStart()
 	}

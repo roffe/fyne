@@ -10,23 +10,20 @@ double doubleClickInterval();
 void startStallTimer(void);
 */
 import "C"
-import (
-	"time"
+import "time"
 
-	"fyne.io/fyne/v2"
-)
+var stallDriver *gLDriver
 
 // startStallTimer has the main run loop call drawIfStalled sixty times a
 // second in every mode, including the one a window drag runs in.
-func startStallTimer() {
+func startStallTimer(d *gLDriver) {
+	stallDriver = d
 	C.startStallTimer()
 }
 
 //export fyneStallTick
 func fyneStallTick() {
-	if d, ok := fyne.CurrentApp().Driver().(*gLDriver); ok {
-		drawIfStalled(d)
-	}
+	drawIfStalled(stallDriver)
 }
 
 func setDisableScreenBlank(disable bool) {

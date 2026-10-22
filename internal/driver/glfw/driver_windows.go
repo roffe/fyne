@@ -28,7 +28,18 @@ var (
 	executionState     = kernel32.NewProc("SetThreadExecutionState")
 	MessageBox         = user32.NewProc("MessageBoxW")
 	getDoubleClickTime = user32.NewProc("GetDoubleClickTime")
+	setTimer           = user32.NewProc("SetTimer")
 )
+
+// startStallTimer has the thread's message queue dispatch drawIfStalled sixty
+// times a second, during the modal loop a window drag runs included.
+func startStallTimer(d *gLDriver) {
+	tick := syscall.NewCallback(func(_, _, _, _ uintptr) uintptr {
+		drawIfStalled(d)
+		return 0
+	})
+	syscall.SyscallN(setTimer.Addr(), 0, 0, uintptr(tickPeriod/time.Millisecond), tick)
+}
 
 func toNativePtr(s string) *uint16 {
 	pstr, err := syscall.UTF16PtrFromString(s)

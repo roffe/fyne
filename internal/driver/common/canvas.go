@@ -229,19 +229,22 @@ func (c *Canvas) FocusPrevious() {
 	mgr.FocusPrevious()
 }
 
-// FreeDirtyTextures frees dirty textures and returns the number of freed textures.
-func (c *Canvas) FreeDirtyTextures() uint64 {
+// FreeDirtyTextures frees the textures of every object refreshed since the
+// last call and returns how many there were, and whether watched, when not
+// nil, was one of them.
+func (c *Canvas) FreeDirtyTextures(watched fyne.CanvasObject) (freed uint64, watchedFreed bool) {
 	if c.painter == nil {
-		return 0
+		return 0, false
 	}
 
-	objectsToFree := c.refreshQueue.Len()
+	freed = c.refreshQueue.Len()
 	for object := c.refreshQueue.Out(); object != nil; object = c.refreshQueue.Out() {
+		watchedFreed = watchedFreed || object == watched
 		c.freeObject(object)
 	}
 
 	cache.RangeExpiredTexturesFor(c.impl, c.painter.Free)
-	return objectsToFree
+	return freed, watchedFreed
 }
 
 // Initialize initializes the canvas.

@@ -301,6 +301,24 @@ func TestWindow_CursorChangesWhileMouseStill(t *testing.T) {
 	})
 }
 
+func TestWindow_CursorKeptWhileMouseOutside(t *testing.T) {
+	w := createWindow("Test")
+	c := &cursorObject{Rectangle: canvas.NewRectangle(color.White), cursor: desktop.DefaultCursor}
+	c.SetMinSize(fyne.NewSize(20, 20))
+	w.SetContent(c)
+	repaintWindow(w)
+	runOnMain(func() {
+		w.moveMouse(5, 5)
+		w.mouseInside = false
+		c.cursor = desktop.HiddenCursor
+		w.canvas.Refresh(c)
+	})
+	repaintWindow(w)
+	runOnMain(func() {
+		assert.Equal(t, desktop.Cursor(desktop.DefaultCursor), w.cursor)
+	})
+}
+
 type cursorObject struct {
 	*canvas.Rectangle
 	cursor desktop.Cursor
@@ -767,7 +785,7 @@ func TestWindow_HoverableUnderDraggable(t *testing.T) {
 	repaintWindow(w)
 
 	// 1. move over to hoverableObject and verify
-	//  - mouseIn received by hoverableObject
+	//  - mouseInside received by hoverableObject
 	//  - no events by draggableObject
 	//  - no events by draggableHoverableObject
 	runOnMain(func() {
@@ -877,7 +895,7 @@ func TestWindow_HoverableUnderDraggable(t *testing.T) {
 	// 3. move to draggableHoverableObject and verify
 	// - mouseOut received by hoverableObject
 	// - no events by draggableObject
-	// - mouseIn by draggableHoverableObject
+	// - mouseInside by draggableHoverableObject
 	runOnMain(func() {
 		w.moveMouse(27, 27)
 		assert.Nil(t, h.popMouseInEvent())
@@ -896,7 +914,7 @@ func TestWindow_HoverableUnderDraggable(t *testing.T) {
 	})
 
 	// 4. move over to draggableObject and verify
-	// - mouseIn received by hoverableObject
+	// - mouseInside received by hoverableObject
 	// - no events by draggableObject
 	// - mouseOut by draggableHoverableObject
 	runOnMain(func() {
@@ -973,7 +991,7 @@ func TestWindow_HoverableUnderDraggable_DragAcross(t *testing.T) {
 	repaintWindow(w)
 
 	// 1. drag across hoverable
-	//  - mouseIn by hoverableObject
+	//  - mouseInside by hoverableObject
 	//  - no events by draggableObject
 	//  - no events by draggableHoverableObject
 	runOnMain(func() {
@@ -1043,7 +1061,7 @@ func TestWindow_HoverableUnderDraggable_DragAcross(t *testing.T) {
 	})
 
 	// 4 move over to draggableObject and verify
-	// - mouseIn received by hoverableObject
+	// - mouseInside received by hoverableObject
 	// - drag event by draggableObject
 	// - mouseOut by draggableHoverableObject
 	runOnMain(func() {

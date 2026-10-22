@@ -344,7 +344,8 @@ func (d *driver) handlePaint(e paint.Event, w *window) {
 
 	d.animation.TickAnimations()
 	needsInit := !c.initialized
-	canvasNeedRefresh := c.FreeDirtyTextures() > 0 || c.CheckDirtyAndClear()
+	freed, _ := c.FreeDirtyTextures(nil)
+	canvasNeedRefresh := freed > 0 || c.CheckDirtyAndClear()
 	if !needsInit && !canvasNeedRefresh {
 		cache.Clean(false)
 		return

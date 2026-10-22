@@ -99,6 +99,9 @@ type window struct {
 	mouseDragStarted           bool
 	mouseButton                desktop.MouseButton
 	mouseOver                  desktop.Hoverable
+	mouseInside                bool              // the mouse is over the window
+	cursorFrom                 fyne.CanvasObject // what the cursor shown comes from, nil for the default
+	cursorTested               time.Time         // when the cursor was last worked out
 	mouseLastClick             fyne.CanvasObject
 	mousePressed               fyne.CanvasObject
 	mouseClickCount            int
@@ -457,6 +460,11 @@ func (w *window) setCustomCursor(rawCursor *glfw.Cursor, isCustomCursor bool) {
 	if isCustomCursor {
 		w.customCursor = rawCursor
 	}
+}
+
+func (w *window) mouseEntered(_ *glfw.Window, entered bool) {
+	w.mouseInside = entered
+	w.cursorTested = time.Time{}
 }
 
 func (w *window) mouseMoved(_ *glfw.Window, xpos, ypos float64) {
@@ -880,6 +888,7 @@ func (w *window) create() {
 	win.SetRefreshCallback(w.refresh)
 	win.SetContentScaleCallback(w.scaled)
 	win.SetCursorPosCallback(w.mouseMoved)
+	win.SetCursorEnterCallback(w.mouseEntered)
 	win.SetMouseButtonCallback(w.mouseClicked)
 	win.SetScrollCallback(w.mouseScrolled)
 	win.SetKeyCallback(w.keyPressed)

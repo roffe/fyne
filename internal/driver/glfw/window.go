@@ -367,19 +367,22 @@ func (*window) findObjectAtPositionMatching(c *glCanvas, mouse fyne.Position, ma
 	return driver.FindObjectAtPositionMatching(mouse, matches, c.Overlays().Top(), c.menu, c.Content())
 }
 
-// hoverableAt returns the object the mouse hovers at mousePos, its position
-// and the cursor to show there.
-func (w *window) hoverableAt(mousePos fyne.Position) (fyne.CanvasObject, fyne.Position, desktop.Cursor) {
+// hoverableAt returns the object the mouse hovers at mousePos, its position,
+// the cursor to show there and the object that cursor comes from, nil for
+// the default.
+func (w *window) hoverableAt(mousePos fyne.Position) (fyne.CanvasObject, fyne.Position, desktop.Cursor, fyne.CanvasObject) {
 	cursor := desktop.Cursor(desktop.DefaultCursor)
+	var from fyne.CanvasObject
 	obj, pos, _ := w.findObjectAtPositionMatching(w.canvas, mousePos, func(object fyne.CanvasObject) bool {
 		if cursorable, ok := object.(desktop.Cursorable); ok {
 			cursor = cursorable.Cursor()
+			from = object
 		}
 
 		_, hover := object.(desktop.Hoverable)
 		return hover
 	})
-	return obj, pos, cursor
+	return obj, pos, cursor, from
 }
 
 func (w *window) applyCursor(cursor desktop.Cursor) {
@@ -404,8 +407,23 @@ func (w *window) applyCursor(cursor desktop.Cursor) {
 // refreshCursor shows the cursor of what is under the mouse, which can change
 // while the mouse is still, as content changes or picks another cursor.
 func (w *window) refreshCursor() {
-	_, _, cursor := w.hoverableAt(w.mousePos)
+	_, _, cursor, from := w.hoverableAt(w.mousePos)
+	w.cursorFrom = from
+	w.cursorTested = time.Now()
 	w.applyCursor(cursor)
+}
+
+// cursorRetest is how long the cursor stays as it is after objects other
+// than its source were refreshed under a still mouse.
+const cursorRetest = 100 * time.Millisecond
+
+// cursorMayChange reports whether a repaint that refreshed objects, the
+// cursor's source among them when source is set, may call for another
+// cursor. Nothing does while the mouse is outside the window. Finding out
+// walks the whole object tree, which an animation would pay every frame,
+// so with the source untouched it is done at most every cursorRetest.
+func (w *window) cursorMayChange(source bool) bool {
+	return w.mouseInside && (source || time.Since(w.cursorTested) >= cursorRetest)
 }
 
 func (w *window) processMouseMoved(xpos float64, ypos float64) {
@@ -416,7 +434,10 @@ func (w *window) processMouseMoved(xpos float64, ypos float64) {
 	mouseDragPos := w.mouseDragPos
 	mouseOver := w.mouseOver
 
-	obj, pos, cursor := w.hoverableAt(mousePos)
+	obj, pos, cursor, from := w.hoverableAt(mousePos)
+	w.mouseInside = true
+	w.cursorFrom = from
+	w.cursorTested = time.Now()
 	w.applyCursor(cursor)
 
 	if w.mouseButton != 0 && w.mouseButton != desktop.MouseButtonSecondary && !w.mouseDragStarted {

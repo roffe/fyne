@@ -74,6 +74,9 @@ type window struct {
 	mouseDragStarted                bool
 	mouseButton                     desktop.MouseButton
 	mouseOver                       desktop.Hoverable
+	mouseInside                     bool              // the mouse is over the window
+	cursorFrom                      fyne.CanvasObject // what the cursor shown comes from, nil for the default
+	cursorTested                    time.Time         // when the cursor was last worked out
 	mouseLastClick                  fyne.CanvasObject
 	mousePressed                    fyne.CanvasObject
 	mouseClickCount                 int

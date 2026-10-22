@@ -216,9 +216,10 @@ func (*gLDriver) repaintWindow(w *window) bool {
 	if canvas.EnsureMinSize() {
 		w.shouldExpand = true
 	}
-	freed = canvas.FreeDirtyTextures() > 0
-	if freed {
-		w.refreshCursor() // what is under the mouse may have changed
+	n, cursorSource := canvas.FreeDirtyTextures(w.cursorFrom)
+	freed = n > 0
+	if freed && w.cursorMayChange(cursorSource) {
+		w.refreshCursor()
 	}
 
 	updateGLContext(w)

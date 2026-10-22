@@ -2,7 +2,47 @@
 
 package glfw
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestRefreshWindow_DrawsWhileLoopStalled(t *testing.T) {
+	w := createWindow("Test")
+
+	var ran, stalled, healthy, notPolling bool
+	queue := func() {
+		ran = false
+		funcQueue.In() <- funcData{f: func() { ran = true }}
+		for len(funcQueue.Out()) == 0 { // it arrives through a goroutine
+			time.Sleep(time.Millisecond)
+		}
+	}
+	runOnMain(func() {
+		defer func() { polling = false }()
+
+		polling, lastTick = true, time.Now().Add(-time.Second)
+		queue()
+		refreshWindow(w.window)
+		stalled = ran
+
+		polling, lastTick = true, time.Now()
+		queue()
+		refreshWindow(w.window)
+		healthy = ran
+
+		polling, lastTick = false, time.Now().Add(-time.Second)
+		queue()
+		refreshWindow(w.window)
+		notPolling = ran
+	})
+
+	assert.True(t, stalled)
+	assert.False(t, healthy)
+	assert.False(t, notPolling)
+}
 
 // BenchmarkRunOnMain measures the cost of calling a function
 // on the main thread.

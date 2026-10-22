@@ -109,6 +109,7 @@ func (d *gLDriver) runGL() {
 	}
 
 	d.init()
+	startStallTimer()
 	if d.trayStart != nil {
 		d.trayStart()
 	}
@@ -158,7 +159,10 @@ func (d *gLDriver) runGL() {
 				f.done <- struct{}{}
 			}
 		case <-eventTick.C:
+			lastTick = time.Now()
+			polling = true
 			d.pollEvents()
+			polling = false
 			for i := 0; i < len(d.windows); i++ {
 				w, _ := d.windows[i].(*window)
 				w.ensurePositionProcessed()
@@ -243,9 +247,52 @@ func (*gLDriver) repaintWindow(w *window) bool {
 	return freed
 }
 
+// tickPeriod is how often the loop polls events and draws.
+const tickPeriod = time.Second / 60
+
+// lastTick is when the loop last started polling events, and polling whether
+// it is still inside that call.
+var (
+	lastTick time.Time
+	polling  bool
+)
+
 // refreshWindow requests that the specified window be redrawn
 func refreshWindow(w *window) {
 	w.canvas.SetDirty()
+	drawIfStalled(w.driver)
+}
+
+// drawIfStalled draws a frame when the loop is stuck polling events, at most
+// once a tick. On macOS and Windows, dragging a window edge keeps the loop
+// inside pollEvents until the mouse is released, so GLFW's refresh callbacks
+// and, on macOS, the stall timer are the only chances to draw meanwhile.
+func drawIfStalled(d *gLDriver) {
+	if !polling || time.Since(lastTick) < tickPeriod {
+		return
+	}
+
+	lastTick = time.Now()
+	drainFuncQueue()
+	d.animation.TickAnimations()
+	d.drawSingleFrame()
+}
+
+func drainFuncQueue() {
+	for {
+		select {
+		case f, ok := <-funcQueue.Out():
+			if !ok {
+				return
+			}
+			f.f()
+			if f.done != nil {
+				f.done <- struct{}{}
+			}
+		default:
+			return
+		}
+	}
 }
 
 func updateGLContext(w *window) {

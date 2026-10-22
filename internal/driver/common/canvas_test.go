@@ -408,7 +408,7 @@ func TestRefreshCount(t *testing.T) { // Issue 2548.
 	c := &Canvas{}
 	c.Initialize(nil, func() {})
 
-	freed := c.FreeDirtyTextures()
+	freed, _ := c.FreeDirtyTextures(nil)
 	assert.Zero(t, freed)
 
 	c.SetPainter(gl.NewPainter(&dummyCanvas{}, struct{ driver.WithContext }{}))
@@ -418,7 +418,7 @@ func TestRefreshCount(t *testing.T) { // Issue 2548.
 		c.Refresh(canvas.NewRectangle(color.Gray16{Y: 1}))
 	}
 
-	freed = c.FreeDirtyTextures()
+	freed, _ = c.FreeDirtyTextures(nil)
 	assert.Equal(t, refresh, freed)
 }
 
@@ -435,7 +435,7 @@ func BenchmarkRefresh(b *testing.B) {
 				for n := uint64(0); n < i; n++ {
 					c.Refresh(canvas.NewRectangle(color.Black))
 				}
-				c.FreeDirtyTextures()
+				c.FreeDirtyTextures(nil)
 			}
 		})
 	}

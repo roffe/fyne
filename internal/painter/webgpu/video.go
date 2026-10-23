@@ -173,10 +173,10 @@ func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 		var err error
 		after := layout
 		if img.Buffer != 0 {
-			src := wgpu.ExternalBuffer{Buffer: img.Buffer, BytesPerRow: uint32(img.Stride), Semaphore: img.Semaphore, Value: value}
+			src := wgpu.ExternalBuffer{Buffer: uint64(img.Buffer), BytesPerRow: uint32(img.Stride), Semaphore: uint64(img.Semaphore), Value: value}
 			err = p.gpu.queue.CopyExternalBuffer(src, v.planes[0].tex)
 		} else {
-			src := wgpu.ExternalImage{Image: img.Image, Layout: layout, Slice: uint32(img.Layer), Semaphore: img.Semaphore, Value: value}
+			src := wgpu.ExternalImage{Image: uint64(img.Image), Layout: layout, Slice: uint32(img.Layer), Semaphore: uint64(img.Semaphore), Value: value}
 			after, err = p.gpu.queue.CopyExternalPlanes(src, v.planes[0].tex, v.planes[1].tex)
 		}
 		if err != nil {

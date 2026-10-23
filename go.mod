@@ -19,7 +19,6 @@ require (
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.5
 	github.com/godbus/dbus/v5 v5.2.2
-	github.com/gogpu/naga v0.20.3
 	github.com/hack-pad/go-indexeddb v0.3.2
 	github.com/jackmordaunt/icns/v2 v2.2.7
 	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade
@@ -31,6 +30,7 @@ require (
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nicksnyder/go-i18n/v2 v2.5.1
 	github.com/roffe/gowgpu v0.0.0-20261023230723-1adae8e2d2b4
+	github.com/roffe/naga v0.0.0-20261023225641-3fa38b9bec83
 	github.com/rymdport/portal v0.4.2
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/stretchr/testify v1.11.1
@@ -54,7 +54,6 @@ require (
 	github.com/jsummers/gobmp v0.0.0-20230614200233-a9de23ed2e25 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/roffe/naga v0.0.0-20261023225641-3fa38b9bec83 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect

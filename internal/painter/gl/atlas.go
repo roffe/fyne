@@ -37,14 +37,15 @@ func (p *painter) useProgram(prog Program) {
 	p.ctx.UseProgram(prog)
 }
 
-// FlushGlyphs draws the queued batch, quads or lines, in one draw call. It has
-// to run before any other draw, before the scissor rectangle changes, before
-// atlas space is reused and at the end of the frame; each of those would
-// otherwise reorder, mis-clip or mis-sample the queue. Queuing either kind
-// flushes the other first, so at most one of them holds anything.
+// FlushGlyphs draws the queued batch, quads, lines or Slug text, in one draw
+// call. It has to run before any other draw, before the scissor rectangle
+// changes, before atlas space is reused and at the end of the frame; each of
+// those would otherwise reorder, mis-clip or mis-sample the queue. Queuing one
+// kind flushes the others first, so at most one of them holds anything.
 func (p *painter) FlushGlyphs() {
 	p.flushQuads()
 	p.flushLines()
+	p.flushSlug()
 }
 
 func (p *painter) flushQuads() {
@@ -177,11 +178,6 @@ func (p *painter) pushSolidRect(r *canvas.Rectangle, pos fyne.Position, frame fy
 	if r.FillColor == nil || r.FillColor == color.Transparent {
 		return true // nothing to draw, and no stroke or shadow either
 	}
-	p.ensureAtlas()
-	u, v, ok := p.atlas.White(p)
-	if !ok {
-		return false
-	}
 
 	// The snapping vecRectCoords applies, without the antialiasing skirt it adds
 	// for the shader's quad (which the shader then clips back to bounds).
@@ -192,6 +188,15 @@ func (p *painter) pushSolidRect(r *canvas.Rectangle, pos fyne.Position, frame fy
 	)
 	fw, fh := p.scaleFrameSize(frame)
 	cr, cg, cb, ca := getFragmentColor(r.FillColor)
+	if paint.SlugText && p.slugProgram() != nil { // the batch the text around it is in
+		p.pushSlug(paint.SlugQuad{X1: x1, Y1: y1, X2: x2, Y2: y2}, paint.SlugSolid, [4]float32{cr, cg, cb, ca}, fw, fh)
+		return true
+	}
+	p.ensureAtlas()
+	u, v, ok := p.atlas.White(p)
+	if !ok {
+		return false
+	}
 	p.pushQuad(paint.GlyphQuad{X1: x1, Y1: y1, X2: x2, Y2: y2, U1: u, V1: v, U2: u, V2: v},
 		[4]float32{cr, cg, cb, ca}, fw, fh)
 	return true
@@ -201,7 +206,8 @@ func (p *painter) pushSolidRect(r *canvas.Rectangle, pos fyne.Position, frame fy
 // It is two triangles of six vertices that each carry the colour: GL 2.1 and
 // ES 2 have no instancing, and the whole queue is still a single draw.
 func (p *painter) pushQuad(q paint.GlyphQuad, col [4]float32, fw, fh float32) {
-	p.flushLines() // lines queued before this quad belong under it
+	p.flushLines() // lines and text queued before this quad belong under it
+	p.flushSlug()
 	// Pixels to clip space: x doubles and shifts, y additionally flips.
 	x1, y1 := q.X1/fw*2-1, 1-q.Y1/fh*2
 	x2, y2 := q.X2/fw*2-1, 1-q.Y2/fh*2

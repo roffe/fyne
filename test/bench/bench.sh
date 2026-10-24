@@ -8,6 +8,7 @@
 #   D=3s ./bench.sh               shorter runs
 #   PLATFORM=x11 ./bench.sh       force X11/XWayland (default follows the session)
 #   PAINTERS=gl ./bench.sh        only some painters (default "gl wgpu-vulkan wgpu-gl")
+#   TEXT=atlas ./bench.sh         only some text renderers (default "atlas slug")
 #   ./bench.sh rects 5000 1       one scene/n/u instead of the matrix
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -19,6 +20,7 @@ rm -f bin/*.log
 # gl is the GL painter; wgpu-<api> the WebGPU painter on that API (vulkan, gl,
 # dx12 or metal), all from the two binaries the gl and wgpu tags build.
 read -ra painters <<<"${PAINTERS:-gl wgpu-vulkan wgpu-gl}"
+read -ra texts <<<"${TEXT:-atlas slug}"
 read -ra tags <<<"$(printf '%s\n' "${painters[@]%%-*}" | sort -u | xargs)"
 revs=(head)
 
@@ -58,11 +60,20 @@ fi
 # Any binary prints the header and draws the table; head has them all.
 tool=bin/head-${tags[0]}
 
+# A build is rev-painter, with -slug when text goes through Slug (FYNE_TEXT=slug)
+# rather than the glyph atlas. Slug is new in head, so base only runs the atlas.
 builds=()
 for p in "${painters[@]}"; do
-	for r in "${revs[@]}"; do
-		has "$r" "$p" || continue
-		builds+=("$r-$p")
+	for t in "${texts[@]}"; do
+		for r in "${revs[@]}"; do
+			has "$r" "$p" || continue
+			suffix=""
+			if [[ $t == slug ]]; then
+				[[ $r == base ]] && continue
+				suffix=-slug
+			fi
+			builds+=("$r-$p$suffix")
+		done
 	done
 done
 
@@ -82,9 +93,12 @@ echo "$info" >&2
 
 run() { # scene n u
 	for b in "${builds[@]}"; do
+		[[ $b == *-slug && $1 == rects ]] && continue # no text to draw
 		rev=${b%%-*} painter=${b#*-}
+		painter=${painter%-slug}
 		env=()
 		[[ $painter == wgpu-* ]] && env+=("FYNE_WGPU_BACKEND=${painter#wgpu-}")
+		[[ $b == *-slug ]] && env+=(FYNE_TEXT=slug)
 		bin=bin/$rev-${painter%%-*}
 		echo "== $b $*" >>"bin/$b.log"
 		env "${env[@]}" BENCH_T0="$(date +%s%N)" timeout 120 "$bin" -label "$b" -scene "$1" -n "$2" -u "$3" -d "$D" 2>>"bin/$b.log" ||

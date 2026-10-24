@@ -8,13 +8,11 @@ import (
 	"fyne.io/fyne/v2/internal/painter/webgpu"
 )
 
-// WebGPU is the default painter; -tags gl keeps GL.
+// WebGPU is the default painter, with GL to fall back to; -tags gl keeps
+// only GL and -tags wgpu only WebGPU.
 // Windows get no GL context: GLFW only provides the native window and its
 // input, and the WebGPU painter presents to a surface on it.
-
-func initWindowHints() {
-	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)
-}
+type wgpuPainter struct{}
 
 // The driver paints and presents on the main goroutine, locked to the main
 // thread by GLFW, so the GL backend may keep its context current there.
@@ -22,18 +20,28 @@ func initWindowHints() {
 // main goroutine it belongs inside fyne.DoAndWait, as before.
 func init() {
 	webgpu.PinnedThread = true
+	painters = append([]windowPainter{wgpuPainter{}}, painters...)
 }
 
-func (w *window) initPainter() {
+func (wgpuPainter) windowHints() {
+	glfw.WindowHint(glfw.ClientAPI, glfw.NoAPI)
+}
+
+func (wgpuPainter) initPainter(w *window) error {
 	target := surfaceTarget(w.viewport)
-	w.canvas.SetPainter(webgpu.NewPainter(w.canvas, &target))
-	w.canvas.Painter().Init()
+	p := webgpu.NewPainter(w.canvas, &target)
+	if err := p.TryInit(); err != nil {
+		p.Release()
+		return err
+	}
+	w.canvas.SetPainter(p)
+	return nil
 }
 
 // makeContextCurrent has nothing to do, WebGPU is not bound to a thread.
-func (*window) makeContextCurrent() {}
+func (wgpuPainter) makeContextCurrent(*window) {}
 
-func (w *window) swapBuffers() {
+func (wgpuPainter) swapBuffers(w *window) {
 	p, _ := w.canvas.Painter().(*webgpu.Painter)
 	followBackingScale(w.viewport)
 	p.Present()
@@ -43,7 +51,7 @@ func (w *window) swapBuffers() {
 }
 
 // releasePainter drops the window's surface, which has to go before the window.
-func (w *window) releasePainter() {
+func (wgpuPainter) releasePainter(w *window) {
 	if p, ok := w.canvas.Painter().(*webgpu.Painter); ok {
 		p.Release()
 	}

@@ -1,4 +1,4 @@
-//go:build gl && !wgpu && !wasm && !test_web_driver
+//go:build !wgpu && !wasm && !test_web_driver
 
 package glfw
 
@@ -9,22 +9,31 @@ import (
 	"fyne.io/fyne/v2/internal/painter/gl"
 )
 
-func (w *window) initPainter() {
+type glPainter struct{}
+
+func init() {
+	painters = append(painters, glPainter{})
+}
+
+func (glPainter) windowHints() { glWindowHints() }
+
+func (glPainter) initPainter(w *window) error {
 	w.canvas.SetPainter(gl.NewPainter(w.canvas, w))
 	w.canvas.Painter().Init()
 
 	if build.IsWayland {
 		glfw.SwapInterval(0)
 	}
+	return nil
 }
 
-func (w *window) makeContextCurrent() {
+func (glPainter) makeContextCurrent(w *window) {
 	w.view().MakeContextCurrent()
 }
 
-func (w *window) swapBuffers() {
+func (glPainter) swapBuffers(w *window) {
 	w.view().SwapBuffers()
 }
 
 // releasePainter has nothing to do, the GL context goes with the window.
-func (*window) releasePainter() {}
+func (glPainter) releasePainter(*window) {}

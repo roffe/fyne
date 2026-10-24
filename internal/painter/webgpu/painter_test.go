@@ -342,6 +342,44 @@ func TestRefreshRegionUpdatesTexture(t *testing.T) {
 	}
 }
 
+// TestWideTextIsWindowed paints a run the atlas cannot draw that is wider than
+// the largest texture, scrolled so that its middle shows, as GL windows it.
+func TestWideTextIsWindowed(t *testing.T) {
+	test.NewTempApp(t)
+	test.ApplyTheme(t, test.Theme())
+	if _, err := sharedGPU(nil); err != nil {
+		t.Skip("no WebGPU adapter:", err)
+	}
+	// A colour emoji sends the run past the coverage atlas.
+	text := canvas.NewText(strings.Repeat("wide text \U0001F600 ", 30), color.Black)
+	text.TextSize = 24
+	text.Resize(text.MinSize())
+	c := test.NewCanvas()
+	c.SetPadded(false)
+	c.SetContent(container.NewWithoutLayout(text))
+	c.Resize(fyne.NewSize(200, 40))
+	p := NewPainter(c, nil)
+	p.Init()
+	defer p.Release()
+	p.maxTextureSize = 256
+
+	for _, x := range []float32{-1000, -1400} {
+		text.Move(fyne.NewPos(x, 0))
+		got, ref := paintCanvas(p, c), captureSoftware(c)
+		bad := 0
+		for y := ref.Bounds().Min.Y; y < ref.Bounds().Max.Y; y++ {
+			for x := ref.Bounds().Min.X; x < ref.Bounds().Max.X; x++ {
+				if channelDiff(got.At(x, y), ref.At(x, y)) > 64 {
+					bad++
+				}
+			}
+		}
+		if share := float64(bad) / float64(ref.Bounds().Dx()*ref.Bounds().Dy()); share > 0.04 {
+			t.Errorf("at x %v: %.2f%% of pixels differ from the software painter", x, share*100)
+		}
+	}
+}
+
 // captureSoftware renders c as the test driver does: the software painter
 // over the theme background.
 func captureSoftware(c fyne.Canvas) image.Image {

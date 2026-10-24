@@ -137,12 +137,14 @@ func NewPainter(c fyne.Canvas, target *wgpu.SurfaceTargetUnsafe) *Painter {
 // that can draw the window there is nothing this painter can do, so failure
 // panics, naming what each API it tried said.
 func (p *Painter) Init() {
-	if err := p.setup(); err != nil {
+	if err := p.TryInit(); err != nil {
 		panic("fyne: no graphics API can draw this window:\n" + err.Error())
 	}
 }
 
-func (p *Painter) setup() (err error) {
+// TryInit is Init returning its failure, for a driver with another painter
+// to fall back to. Release frees what it made on the way.
+func (p *Painter) TryInit() (err error) {
 	if p.gpu, err = p.connect(); err != nil {
 		return err
 	}

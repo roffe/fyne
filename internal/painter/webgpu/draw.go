@@ -256,6 +256,7 @@ func (p *Painter) drawLine(line *canvas.Line, pos fyne.Position, frame fyne.Size
 	col := fragmentColor(line.StrokeColor)
 	p.flushInstances() // anything queued before this line belongs under it
 	p.flushQuads()
+	p.flushSlug()
 	for v := range lineVertices {
 		pt := points[v*4:]
 		p.linePending = append(p.linePending, pt[0], pt[1], pt[2], pt[3], col[0], col[1], col[2], col[3], halfWidth, feather)
@@ -463,7 +464,7 @@ func (p *Painter) drawText(text *canvas.Text, pos fyne.Position, frame fyne.Size
 	size.Height += roundToPixel(paint.TextVectorPad, p.pixScale)  // space below for descenders / underline
 	// The atlas draws a quad per glyph out of one shared texture; the whole-run
 	// texture is only for strings it cannot represent.
-	if p.drawTextFromAtlas(text, pos, frame, clip) {
+	if paint.SlugText && p.drawTextSlug(text, pos, frame, clip) || p.drawTextFromAtlas(text, pos, frame, clip) {
 		p.freeTextWindow(text)
 	} else if fullWidth := int(math.Ceil(float64(size.Width * p.pixScale))); fullWidth <= p.maxTextureSize {
 		p.freeTextWindow(text)
@@ -563,13 +564,6 @@ func (p *Painter) pushSolidRect(r *canvas.Rectangle, pos fyne.Position, frame fy
 	if isTransparent(r.FillColor) {
 		return true // nothing to draw, and no stroke or shadow either
 	}
-	if !p.ensureAtlas() {
-		return false
-	}
-	u, v, ok := p.atlas.White(p)
-	if !ok {
-		return false
-	}
 
 	// The snapping vecRectCoords applies, without the antialiasing skirt it adds
 	// for the shader's quad.
@@ -579,6 +573,17 @@ func (p *Painter) pushSolidRect(r *canvas.Rectangle, pos fyne.Position, frame fy
 		roundToPixel(pos.Y, p.pixScale), roundToPixel(pos.Y+size.Height, p.pixScale),
 	)
 	fw, fh := p.scaleFrameSize(frame)
+	if paint.SlugText { // the batch the text around it is in
+		p.pushSlug(paint.SlugQuad{X1: x1, Y1: y1, X2: x2, Y2: y2}, paint.SlugSolid, fragmentColor(r.FillColor), fw, fh)
+		return true
+	}
+	if !p.ensureAtlas() {
+		return false
+	}
+	u, v, ok := p.atlas.White(p)
+	if !ok {
+		return false
+	}
 	p.pushQuad(paint.GlyphQuad{X1: x1, Y1: y1, X2: x2, Y2: y2, U1: u, V1: v, U2: u, V2: v}, fragmentColor(r.FillColor), fw, fh)
 	return true
 }
@@ -587,6 +592,7 @@ func (p *Painter) pushSolidRect(r *canvas.Rectangle, pos fyne.Position, frame fy
 func (p *Painter) pushQuad(q paint.GlyphQuad, col [4]float32, fw, fh float32) {
 	p.flushInstances() // anything queued before this quad belongs under it
 	p.flushLines()
+	p.flushSlug()
 	// Pixels to clip space: x doubles and shifts, y additionally flips.
 	x1, y1 := q.X1/fw*2-1, 1-q.Y1/fh*2
 	x2, y2 := q.X2/fw*2-1, 1-q.Y2/fh*2
@@ -603,13 +609,14 @@ func (p *Painter) pushQuad(q paint.GlyphQuad, col [4]float32, fw, fh float32) {
 }
 
 // flushBatch draws whatever is queued: instanced shapes and textures, glyph
-// quads or lines. It has to run before any other draw, before the clip changes
-// and before a submit; queuing one kind flushes the others first, so at most
-// one of them holds anything.
+// quads, Slug text or lines. It has to run before any other draw, before the
+// clip changes and before a submit; queuing one kind flushes the others first,
+// so at most one of them holds anything.
 func (p *Painter) flushBatch() {
 	p.flushInstances()
 	p.flushQuads()
 	p.flushLines()
+	p.flushSlug()
 }
 
 func (p *Painter) flushQuads() {

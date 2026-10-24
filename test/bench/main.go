@@ -284,8 +284,8 @@ func texts(n int) (fyne.CanvasObject, func(float64, int)) {
 
 // zoom: labels whose size sweeps 0.2x to 1.8x every few seconds, like a zooming
 // or animated view. The atlas caches a glyph per size in 64ths of a pixel, a
-// range this wide does not fit, so it keeps rasterising. Labels overlap at the
-// top of the sweep.
+// range this wide does not fit, so it keeps rasterising; Slug draws any size
+// from the outlines it already has. Labels overlap at the top of the sweep.
 func zoom(n int) (fyne.CanvasObject, func(float64, int)) {
 	cols, cw, ch := grid(n)
 	size := ch * 0.5

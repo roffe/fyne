@@ -463,11 +463,13 @@ func (p *Painter) drawText(text *canvas.Text, pos fyne.Position, frame fyne.Size
 	size.Height += roundToPixel(paint.TextVectorPad, p.pixScale)  // space below for descenders / underline
 	// The atlas draws a quad per glyph out of one shared texture; the whole-run
 	// texture is only for strings it cannot represent.
-	// ponytail: GL also windows a whole-run texture wider than the largest
-	// texture; such a string (an emoji line over 8k pixels) is skipped here.
-	if !p.drawTextFromAtlas(text, pos, frame, clip) &&
-		int(math.Ceil(float64(size.Width*p.pixScale))) <= p.MaxTextureSize() {
+	if p.drawTextFromAtlas(text, pos, frame, clip) {
+		p.freeTextWindow(text)
+	} else if fullWidth := int(math.Ceil(float64(size.Width * p.pixScale))); fullWidth <= p.maxTextureSize {
+		p.freeTextWindow(text)
 		p.drawTextureWithDetails(text, p.newTextTexture, pos, size, frame, canvas.ImageFillStretch, 1.0, 0)
+	} else {
+		p.drawTextWindow(text, pos, size, frame, clip, fullWidth)
 	}
 
 	if decorated {
@@ -808,6 +810,89 @@ func (p *Painter) newTextTexture(obj fyne.CanvasObject) cache.TextureType {
 	face := paint.CachedFontFace(text.TextStyle, text.FontSource, text)
 	paint.DrawString(img, text.Text, col, face.Fonts, text.TextSize, p.pixScale, text.TextStyle)
 	return p.imgToTexture(img, canvas.ImageScaleSmooth)
+}
+
+// textWindow is the part of a run too wide for one texture that was last
+// drawn, offset device pixels from its start.
+type textWindow struct {
+	id            cache.TextureType
+	offset        int
+	width, height int
+	scale         float32
+}
+
+func (w textWindow) covers(offset, width, height int, scale float32) bool {
+	return w.height == height && w.scale == scale &&
+		w.offset <= offset && w.offset+w.width >= offset+width
+}
+
+// drawTextWindow draws the visible part of a run wider than the largest
+// texture from a texture as wide as the device allows, centred on it.
+func (p *Painter) drawTextWindow(text *canvas.Text, pos fyne.Position, size, frame fyne.Size, clip *internal.ClipItem, fullWidth int) {
+	visibleOffset, visibleWidth := visibleTextPixels(pos, size, frame, clip, p.pixScale)
+	if visibleWidth <= 0 {
+		return
+	}
+	height := int(math.Ceil(float64(size.Height * p.pixScale)))
+	w, ok := p.textWindows[text]
+	if id, live := cache.GetTexture(text); !ok || !live || id != w.id || !w.covers(visibleOffset, visibleWidth, height, p.pixScale) {
+		p.Free(text)
+		col := text.Color
+		if col == nil {
+			col = theme.Color(theme.ColorNameForeground)
+		}
+		offset, width := textTextureWindow(visibleOffset, visibleWidth, fullWidth, p.maxTextureSize)
+		img := image.NewRGBA(image.Rect(0, 0, width, height))
+		face := paint.CachedFontFace(text.TextStyle, text.FontSource, text)
+		paint.DrawStringOffset(img, text.Text, col, face.Fonts, text.TextSize, p.pixScale, text.TextStyle, offset)
+		w = textWindow{id: p.imgToTexture(img, canvas.ImageScaleSmooth), offset: offset, width: width, height: height, scale: p.pixScale}
+		cache.SetTexture(text, w.id, p.canvas)
+		p.textWindows[text] = w
+	}
+	t := p.textures[w.id]
+	if t == nil {
+		return
+	}
+	winPos := fyne.NewPos(pos.X+float32(w.offset)/p.pixScale, pos.Y)
+	winSize := fyne.NewSize(float32(w.width)/p.pixScale, size.Height)
+	quad, insets, inner := p.rectCoords(winSize, winPos, frame, canvas.ImageFillStretch, 0, 0)
+	u := texParams{
+		Quad:   quad,
+		Inset:  insets,
+		Params: [4]float32{1, 0, inner.Width * p.pixScale, inner.Height * p.pixScale},
+	}
+	drawQuad(p, p.gpu.texture, &u, t.group)
+}
+
+func (p *Painter) freeTextWindow(text *canvas.Text) {
+	if len(p.textWindows) == 0 {
+		return
+	}
+	if _, ok := p.textWindows[text]; ok {
+		p.Free(text)
+	}
+}
+
+func textTextureWindow(visibleOffset, visibleWidth, fullWidth, maxWidth int) (offset, width int) {
+	width = min(maxWidth, fullWidth)
+	visibleWidth = min(visibleWidth, width)
+	offset = max(visibleOffset-(width-visibleWidth)/2, 0)
+	return min(offset, fullWidth-width), width
+}
+
+func visibleTextPixels(pos fyne.Position, size, frame fyne.Size, clip *internal.ClipItem, scale float32) (offset, width int) {
+	clipPos, clipSize := fyne.Position{}, frame
+	if clip != nil {
+		clipPos, clipSize = clip.Rect()
+	}
+	left := max(pos.X, clipPos.X)
+	right := min(pos.X+size.Width, clipPos.X+clipSize.Width)
+	if right <= left {
+		return 0, 0
+	}
+	offset = int(math.Floor(float64((left - pos.X) * scale)))
+	width = int(math.Ceil(float64((right-pos.X)*scale))) - offset
+	return offset, width
 }
 
 // shape starts the uniforms of a vector shape drawn over quad, with bounds in

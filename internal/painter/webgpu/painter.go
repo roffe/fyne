@@ -23,6 +23,7 @@ import (
 	"github.com/roffe/gowgpu/gputypes"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/internal"
 	"fyne.io/fyne/v2/internal/build"
 	"fyne.io/fyne/v2/internal/cache"
@@ -100,6 +101,8 @@ type Painter struct {
 	offset                [1]uint32       // the dynamic offset of a bind, see dynamicOffset
 	empty                 *gpuTexture     // bound for draws that sample nothing
 	textures              map[cache.TextureType]*gpuTexture
+	textWindows           map[*canvas.Text]textWindow // runs too wide for one texture, see drawTextWindow
+	maxTextureSize        int
 	videos                map[cache.TextureType]*gpuVideo // registered in the cache like textures
 	garbage               []func()                        // releases waiting for the next submit
 	blurSnap              *gpuTexture
@@ -121,7 +124,7 @@ var nextTexture uint32
 // NewPainter returns a painter for c that presents to the window target names,
 // or one that only draws offscreen, for Capture, when target is nil.
 func NewPainter(c fyne.Canvas, target *wgpu.SurfaceTargetUnsafe) *Painter {
-	p := &Painter{canvas: c, target: target, textures: map[cache.TextureType]*gpuTexture{}, videos: map[cache.TextureType]*gpuVideo{}, userShaders: map[string]*userShader{}}
+	p := &Painter{canvas: c, target: target, textures: map[cache.TextureType]*gpuTexture{}, textWindows: map[*canvas.Text]textWindow{}, videos: map[cache.TextureType]*gpuVideo{}, userShaders: map[string]*userShader{}}
 	p.SetFrameBufferScale(1)
 	return p
 }
@@ -144,6 +147,7 @@ func (p *Painter) setup() (err error) {
 	}
 
 	dev := p.gpu.device
+	p.maxTextureSize = int(dev.Limits().MaxTextureDimension2D)
 	if p.uniformBuf, err = dev.CreateBuffer(&wgpu.BufferDescriptor{Label: "fyne uniforms", Size: arenaSize, Usage: gputypes.BufferUsageUniform | gputypes.BufferUsageCopyDst}); err != nil {
 		return err
 	}
@@ -275,6 +279,9 @@ func (p *Painter) Clear() {
 
 // Free releases the texture held for obj. Shaders own nothing to free.
 func (p *Painter) Free(obj fyne.CanvasObject) {
+	if t, ok := obj.(*canvas.Text); ok {
+		delete(p.textWindows, t)
+	}
 	id, ok := cache.GetTexture(obj)
 	if !ok {
 		return
@@ -294,10 +301,7 @@ func (p *Painter) FlushGlyphs() {
 
 // MaxTextureSize returns the largest texture side the device takes.
 func (p *Painter) MaxTextureSize() int {
-	if p.gpu == nil {
-		return 0
-	}
-	return int(p.gpu.device.Limits().MaxTextureDimension2D)
+	return p.maxTextureSize
 }
 
 // Paint draws obj, but not its children, at pos.
@@ -495,6 +499,7 @@ func (p *Painter) Release() {
 	for id := range p.videos {
 		p.freeTexture(id)
 	}
+	clear(p.textWindows)
 	for _, release := range p.garbage {
 		release()
 	}

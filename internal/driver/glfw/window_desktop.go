@@ -837,7 +837,7 @@ func (w *window) create() {
 		glfw.WindowHint(glfw.Floating, glfw.False)
 	}
 	glfw.WindowHint(glfw.AutoIconify, glfw.False)
-	initWindowHints()
+	painters[0].windowHints()
 	if build.IsWayland {
 		glfw.WindowHintString(glfw.WaylandAppID, fyne.CurrentApp().UniqueID())
 	}
@@ -881,7 +881,21 @@ func (w *window) create() {
 	}
 
 	// run the painter init on the draw thread
-	w.RunWithContext(w.initPainter)
+	w.RunWithContext(func() { err = painters[0].initPainter(w) })
+	if err != nil {
+		if len(painters) == 1 {
+			panic("fyne: no graphics API can draw this window:\n" + err.Error())
+		}
+		// The window was made for the painter that failed, a GL context
+		// needs one made for it.
+		fyne.LogError("WebGPU cannot draw this window, falling back to OpenGL", err)
+		painters = painters[1:]
+		w.viewport = nil
+		win.Destroy()
+		w.create()
+		return
+	}
+	painters = painters[:1]
 
 	w.setDarkMode()
 

@@ -118,9 +118,9 @@ type gpu struct {
 	layout                       *wgpu.PipelineLayout
 	linear, nearest              *wgpu.Sampler
 
-	shapes                     [shapeCount]*wgpu.RenderPipeline
-	texture, blur, glyph, line *wgpu.RenderPipeline
-	blits                      map[gputypes.TextureFormat]*wgpu.RenderPipeline
+	shapes                           [shapeCount]*wgpu.RenderPipeline
+	texture, blur, glyph, line, slug *wgpu.RenderPipeline
+	blits                            map[gputypes.TextureFormat]*wgpu.RenderPipeline
 
 	// video draws VideoFrames, see videoPipeline
 	video       *wgpu.RenderPipeline
@@ -297,6 +297,9 @@ func (g *gpu) init() (err error) {
 		return err
 	}
 	if g.line, err = g.pipeline("line", shaderLine, gputypes.PrimitiveTopologyTriangleList, straightAlpha, frameFormat, lineVertexLayout); err != nil {
+		return err
+	}
+	if g.slug, err = g.pipeline("slug", shaderSlug, gputypes.PrimitiveTopologyTriangleList, straightAlpha, frameFormat, slugVertexLayout); err != nil {
 		return err
 	}
 	return nil

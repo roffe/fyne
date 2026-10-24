@@ -354,6 +354,10 @@ func (w *window) getMonitorForWindow() *glfw.Monitor {
 
 			return monitor
 		}
+	} else if v, ok := any(w.viewport).(interface{ GetWaylandWindowMonitor() *glfw.Monitor }); ok { // only in roffe/glfw
+		if monitor := v.GetWaylandWindowMonitor(); monitor != nil {
+			return monitor
+		}
 	}
 
 	// try built-in function to detect monitor if above logic didn't succeed

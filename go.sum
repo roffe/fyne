@@ -76,10 +76,10 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/roffe/gowgpu v0.0.0-20261024000049-35785accd268 h1:fyTNfmOi7hqVaGN4zgs5ZWooFZTsA0EdXqCXlYKOttw=
-github.com/roffe/gowgpu v0.0.0-20261024000049-35785accd268/go.mod h1:QAXsxu/vx6K9289dHNJbfUTjEAe1Oppx9msHpyhJY2k=
-github.com/roffe/naga v0.0.0-20261023225641-3fa38b9bec83 h1:rixry9X+R0h7UsN0me7ssTC5pGbMG/aVCHHXHu0smo4=
-github.com/roffe/naga v0.0.0-20261023225641-3fa38b9bec83/go.mod h1:xVSreQeq7W169Wr9X6TuyO/I959MnEGw4xxAGOsGQns=
+github.com/roffe/gowgpu v0.0.0-20261024095757-0343737dd5f7 h1:xu2Ygsb+ZCoagF4FvvvyIFy5N63S2J9gWVKvLSOgx78=
+github.com/roffe/gowgpu v0.0.0-20261024095757-0343737dd5f7/go.mod h1:6cFW5Vy47lpzvufTWzQAb6WC5PevEF2f6UF6j7g5gZA=
+github.com/roffe/naga v0.0.0-20261024012201-f1fde643aedc h1:dC9z/EugwgCsFaJUXtnlD72N5aHajy9NfCJtmv2rnkY=
+github.com/roffe/naga v0.0.0-20261024012201-f1fde643aedc/go.mod h1:xVSreQeq7W169Wr9X6TuyO/I959MnEGw4xxAGOsGQns=
 github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf35Ld67mk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/rymdport/portal v0.4.2 h1:7jKRSemwlTyVHHrTGgQg7gmNPJs88xkbKcIL3NlcmSU=

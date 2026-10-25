@@ -160,9 +160,9 @@ func (d *gLDriver) runGL() {
 			}
 		case <-eventTick.C:
 			lastTick = time.Now()
-			polling = true
+			polling.Store(true)
 			d.pollEvents()
-			polling = false
+			polling.Store(false)
 			for i := 0; i < len(d.windows); i++ {
 				w, _ := d.windows[i].(*window)
 				w.ensurePositionProcessed()
@@ -254,7 +254,7 @@ const tickPeriod = time.Second / 60
 // it is still inside that call.
 var (
 	lastTick time.Time
-	polling  bool
+	polling  atomic.Bool
 )
 
 // refreshWindow requests that the specified window be redrawn
@@ -268,7 +268,7 @@ func refreshWindow(w *window) {
 // inside pollEvents until the mouse is released, so GLFW's refresh callbacks
 // and, on macOS, the stall timer are the only chances to draw meanwhile.
 func drawIfStalled(d *gLDriver) {
-	if !polling || time.Since(lastTick) < tickPeriod {
+	if !polling.Load() || time.Since(lastTick) < tickPeriod {
 		return
 	}
 

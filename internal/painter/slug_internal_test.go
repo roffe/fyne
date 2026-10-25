@@ -3,7 +3,6 @@ package painter
 import (
 	"encoding/binary"
 	"image/color"
-	"math"
 	"slices"
 	"testing"
 
@@ -72,13 +71,8 @@ func TestSlugGlyphs_Layout(t *testing.T) {
 		outline, ok := pg.Face.GlyphData(pg.Glyph.GlyphID).(font.GlyphOutline)
 		require.True(t, ok)
 		want := outlineQuads(nil, outline.Segments)
-		kx, ky := SlugUnits/(g.maxX-g.minX), SlugUnits/(g.maxY-g.minY)
 		for i, q := range want {
-			for j := 0; j < 6; j += 2 {
-				q[j] = float32(math.Round(float64((q[j] - g.minX) * kx)))
-				q[j+1] = float32(math.Round(float64((q[j+1] - g.minY) * ky)))
-			}
-			want[i] = q
+			want[i] = g.units(q)
 		}
 		var all [][6]float32
 		for _, l := range lists {
@@ -91,10 +85,11 @@ func TestSlugGlyphs_Layout(t *testing.T) {
 		assert.ElementsMatch(t, want, all, "glyph %d: the curves decoded are the outline's", gi)
 
 		upem := float32(pg.Face.Upem())
+		kx, ky := g.scale()
 		for axis, split := range [2]int{1, 0} {
-			eps := upem / 1024 * ky
+			eps := upem * slugBandOverlap * ky
 			if split == 0 {
-				eps = upem / 1024 * kx
+				eps = upem * slugBandOverlap * kx
 			}
 			for b := range SlugBands {
 				list := lists[axis*SlugBands+b]

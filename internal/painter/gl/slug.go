@@ -79,7 +79,7 @@ func (p *painter) flushSlug() {
 	p.UpdateVertexArray(prog, attrVertex, 2, slugVertexFloats, 0)
 	p.UpdateVertexArray(prog, attrVertexTextureCoordinates, 2, slugVertexFloats, 2)
 	p.UpdateVertexArray(prog, attrVertexColor, 4, slugVertexFloats, 4)
-	p.UpdateVertexArray(prog, "glyphBase", 1, slugVertexFloats, 8)
+	p.UpdateVertexArray(prog, "glyphBase", 1, slugVertexFloats, slugVertexFloats-1)
 	p.SetUniform1f(prog, "rows", float32(p.slug.Rows()))
 	p.ctx.BlendFunc(srcAlpha, oneMinusSrcAlpha)
 	p.ctx.ActiveTexture(texture0)

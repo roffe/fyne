@@ -3,6 +3,7 @@
 package webgpu
 
 import (
+	"encoding/binary"
 	"image/color"
 	"os"
 	"path/filepath"
@@ -165,8 +166,7 @@ func blockFrame(signals [][3]float64, depth int, interleaved bool) *canvas.Video
 	}
 	f.Y = make([]byte, 8*f.YStride)
 	put := func(p []byte, at int, v float64) {
-		s := uint16(v*k + 0.5)
-		p[at], p[at+1] = byte(s), byte(s>>8)
+		binary.LittleEndian.PutUint16(p[at:], uint16(v*k+0.5))
 	}
 	for i, e := range signals {
 		luma := kr*e[0] + (1-kr-kb)*e[1] + kb*e[2]
@@ -200,11 +200,9 @@ func testFrame(w, h int, interleaved bool, depth int) *canvas.VideoFrame {
 	}
 	f := &canvas.VideoFrame{Width: w, Height: h, Depth: depth, YStride: w*n + 16, CStride: w*n + 16, ColorSpace: canvas.VideoColorSpaceBT709}
 	put := func(p []byte, at int, v float64) { // v as 8 bits would hold it
-		s := uint16(v*float64(int(1)<<(depth-8)) + 0.5)
-		p[at] = byte(s)
-		if n == 2 {
-			p[at+1] = byte(s >> 8)
-		}
+		var s [2]byte
+		binary.LittleEndian.PutUint16(s[:], uint16(v*float64(int(1)<<(depth-8))+0.5))
+		copy(p[at:at+n], s[:n])
 	}
 	cw, ch := (w+1)/2, (h+1)/2
 	f.Y = make([]byte, h*f.YStride)

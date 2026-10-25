@@ -86,7 +86,7 @@ func (p *Painter) videoTextures(f *canvas.VideoFrame) *gpuVideo {
 	if f.Image == nil && !paint.VideoPlanes(f) || f.Image != nil && (f.Width <= 0 || f.Height <= 0) {
 		return nil
 	}
-	interleaved, wide, rgba := f.U == nil, f.Depth > 8, f.Image != nil && f.Image.Buffer != 0
+	interleaved, wide, rgba := f.U == nil, paint.VideoWide(f), f.Image != nil && f.Image.Buffer != 0
 	id, ok := cache.GetTexture(f)
 	v := p.videos[id]
 	if ok && v != nil && v.width == f.Width && v.height == f.Height && v.interleaved == interleaved && v.wide == wide && v.rgba == rgba {
@@ -173,10 +173,10 @@ func (p *Painter) copyVideoImage(v *gpuVideo, img *canvas.VideoImage) {
 		var err error
 		after := layout
 		if img.Buffer != 0 {
-			src := wgpu.ExternalBuffer{Buffer: uint64(img.Buffer), BytesPerRow: uint32(img.Stride), Semaphore: uint64(img.Semaphore), Value: value}
+			src := wgpu.ExternalBuffer{Buffer: uint64(img.Buffer), BytesPerRow: u32(img.Stride), Semaphore: uint64(img.Semaphore), Value: value}
 			err = p.gpu.queue.CopyExternalBuffer(src, v.planes[0].tex)
 		} else {
-			src := wgpu.ExternalImage{Image: uint64(img.Image), Layout: layout, Slice: uint32(img.Layer), Semaphore: uint64(img.Semaphore), Value: value}
+			src := wgpu.ExternalImage{Image: uint64(img.Image), Layout: layout, Slice: u32(img.Layer), Semaphore: uint64(img.Semaphore), Value: value}
 			after, err = p.gpu.queue.CopyExternalPlanes(src, v.planes[0].tex, v.planes[1].tex)
 		}
 		if err != nil {

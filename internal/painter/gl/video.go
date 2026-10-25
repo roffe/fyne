@@ -98,7 +98,7 @@ func (p *painter) videoTextures(f *canvas.VideoFrame) *glVideo {
 	if !paint.VideoPlanes(f) {
 		return nil
 	}
-	interleaved, wide := f.U == nil, f.Depth > 8
+	interleaved, wide := f.U == nil, paint.VideoWide(f)
 	_, ok := cache.GetTexture(f)
 	v := p.videos[f]
 	if ok && v != nil && v.width == f.Width && v.height == f.Height && v.interleaved == interleaved && v.wide == wide {

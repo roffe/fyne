@@ -54,6 +54,11 @@ const (
 	// atlas does if an app ever fills it.
 	slugMaxRows = 2048
 	slugMinRows = 64
+	// slugHalf shifts a 16-bit value into the high half of a texel.
+	slugHalf = 16
+	// slugBandOverlap is the em that bands overlap by, so a curve on a
+	// boundary lands in both.
+	slugBandOverlap = 1.0 / 1024
 )
 
 // SlugSolid is the base a painter gives a quad that is filled whole, which
@@ -87,7 +92,7 @@ type SlugGlyphs struct {
 	synced int    // texels the texture holds
 
 	resolve []slugGlyph
-	quads   [][6]float32
+	quads   []slugQuad
 	list    []int
 	block   []uint32
 }
@@ -210,14 +215,8 @@ func (s *SlugGlyphs) add(face *font.Face, gid font.GID) slugGlyph {
 		return slugGlyph{}
 	}
 
-	// Into glyph units, whole ones as the texture stores them.
-	kx, ky := SlugUnits/(g.maxX-g.minX), SlugUnits/(g.maxY-g.minY)
 	for i, q := range s.quads {
-		for j := 0; j < 6; j += 2 {
-			q[j] = float32(math.Round(float64((q[j] - g.minX) * kx)))
-			q[j+1] = float32(math.Round(float64((q[j+1] - g.minY) * ky)))
-		}
-		s.quads[i] = q
+		s.quads[i] = g.units(q)
 	}
 
 	// The points go after the headers and lists, whose length is only known
@@ -238,11 +237,11 @@ func (s *SlugGlyphs) add(face *font.Face, gid font.GID) slugGlyph {
 	s.block = append(s.block[:0], make([]uint32, 2*SlugBands)...)
 	var lists [2 * SlugBands][]int
 	// Horizontal bands split y and sort by x; vertical ones the other way.
+	kx, ky := g.scale()
 	for axis, split := range [2]int{1, 0} {
-		// Bands overlap by 1/1024 em so a curve on a boundary lands in both.
-		eps := float32(face.Upem()) / 1024 * ky
+		eps := float32(face.Upem()) * slugBandOverlap * ky
 		if split == 0 {
-			eps = float32(face.Upem()) / 1024 * kx
+			eps = float32(face.Upem()) * slugBandOverlap * kx
 		}
 		sortBy := 1 - split
 		for b := range SlugBands {
@@ -283,14 +282,12 @@ func (s *SlugGlyphs) add(face *font.Face, gid font.GID) slugGlyph {
 	}
 	pointsAt := u32(2*SlugBands + listLen)
 	for h, l := range lists {
-		s.block[h] = u32(len(l)) | u32(len(s.block))<<16
+		s.block[h] = u32(len(l)) | u32(len(s.block))<<slugHalf
 		for _, i := range l {
 			s.block = append(s.block, refs[i]+pointsAt)
 		}
 	}
-	for _, p := range points {
-		s.block = append(s.block, p)
-	}
+	s.block = append(s.block, points...)
 	if len(s.block) > SlugUnits {
 		return slugGlyph{unsupported: true} // offsets would not fit 16 bits
 	}
@@ -321,21 +318,37 @@ func (s *SlugGlyphs) alloc(n int) (int, bool) {
 }
 
 func slugPair(lo, hi float32) uint32 {
-	return uint32(lo) | uint32(hi)<<16
+	return uint32(lo) | uint32(hi)<<slugHalf
+}
+
+// scale is how many glyph units an outline unit is, across and up.
+func (g *slugGlyph) scale() (kx, ky float32) {
+	return SlugUnits / (g.maxX - g.minX), SlugUnits / (g.maxY - g.minY)
+}
+
+// units is q in glyph units, whole ones as the texture stores them.
+func (g *slugGlyph) units(q slugQuad) slugQuad {
+	kx, ky := g.scale()
+	x := func(v float32) float32 { return float32(math.Round(float64((v - g.minX) * kx))) }
+	y := func(v float32) float32 { return float32(math.Round(float64((v - g.minY) * ky))) }
+	return [...]float32{x(q[0]), y(q[1]), x(q[2]), y(q[3]), x(q[4]), y(q[5])}
 }
 
 func u32(v int) uint32 {
 	return uint32(v) //nolint:gosec // G115: sizes and offsets the callers keep far below 2³²
 }
 
+// slugQuad is a quadratic Bézier: x1 y1 x2 y2 x3 y3.
+type slugQuad = [6]float32
+
 // outlineQuads appends the outline as quadratic Béziers to dst, x1 y1 x2 y2
 // x3 y3 each, closing open contours. A line is a curve whose control point is
 // its end, the encoding Slug's reference recommends.
-func outlineQuads(dst [][6]float32, segs []font.Segment) [][6]float32 {
+func outlineQuads(dst []slugQuad, segs []font.Segment) []slugQuad {
 	var start, cur ot.SegmentPoint
 	quad := func(c, to ot.SegmentPoint) {
 		if c != cur || to != cur {
-			dst = append(dst, [6]float32{cur.X, cur.Y, c.X, c.Y, to.X, to.Y})
+			dst = append(dst, [...]float32{cur.X, cur.Y, c.X, c.Y, to.X, to.Y})
 		}
 		cur = to
 	}

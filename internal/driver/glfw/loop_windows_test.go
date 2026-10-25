@@ -13,9 +13,10 @@ import (
 func TestStallTimer_FiresThroughPollEvents(t *testing.T) {
 	var ran bool
 	runOnMain(func() {
-		defer func() { polling = false }()
+		defer polling.Store(false)
 
-		polling, lastTick = true, time.Now().Add(-time.Second)
+		polling.Store(true)
+		lastTick = time.Now().Add(-time.Second)
 		funcQueue.In() <- funcData{f: func() { ran = true }}
 		for len(funcQueue.Out()) == 0 { // it arrives through a goroutine
 			time.Sleep(time.Millisecond)

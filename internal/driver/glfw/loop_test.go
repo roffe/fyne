@@ -21,19 +21,22 @@ func TestRefreshWindow_DrawsWhileLoopStalled(t *testing.T) {
 		}
 	}
 	runOnMain(func() {
-		defer func() { polling = false }()
+		defer polling.Store(false)
 
-		polling, lastTick = true, time.Now().Add(-time.Second)
+		polling.Store(true)
+		lastTick = time.Now().Add(-time.Second)
 		queue()
 		refreshWindow(w.window)
 		stalled = ran
 
-		polling, lastTick = true, time.Now()
+		polling.Store(true)
+		lastTick = time.Now()
 		queue()
 		refreshWindow(w.window)
 		healthy = ran
 
-		polling, lastTick = false, time.Now().Add(-time.Second)
+		polling.Store(false)
+		lastTick = time.Now().Add(-time.Second)
 		queue()
 		refreshWindow(w.window)
 		notPolling = ran

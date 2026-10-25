@@ -474,7 +474,7 @@ func (p *Painter) drawText(text *canvas.Text, pos fyne.Position, frame fyne.Size
 	}
 
 	if decorated {
-		_, baseline := cache.GetFontMetrics(text.Text, text.TextSize, text.TextStyle, text.FontSource)
+		_, baseline := cache.GetFontMetrics(text.Text, text.TextSize, text.TextStyle, text.FontSource, cache.WidgetScopeID(text))
 		line := canvas.NewLine(text.Color)
 		line.Resize(fyne.NewSize(size.Width, 0))
 		if text.TextStyle.Underline {
@@ -695,15 +695,18 @@ func (p *Painter) freeTexture(id cache.TextureType) {
 
 func (p *Painter) getTexture(object fyne.CanvasObject, creator func(fyne.CanvasObject) cache.TextureType) (cache.TextureType, bool) {
 	if t, ok := object.(*canvas.Text); ok {
-		custom := ""
+		custom, scope := "", ""
 		if t.FontSource != nil {
 			custom = t.FontSource.Name()
+		} else {
+			scope = cache.WidgetScopeID(t)
 		}
 		ent := cache.FontCacheEntry{Color: t.Color, Canvas: p.canvas}
 		ent.Text = t.Text
 		ent.Size = t.TextSize
 		ent.Style = t.TextStyle
 		ent.Source = custom
+		ent.Scope = scope
 
 		id, ok := cache.GetTextTexture(ent)
 		if !ok {

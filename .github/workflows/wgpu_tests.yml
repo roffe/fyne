@@ -39,7 +39,7 @@ jobs:
       # it, and the WebGPU painter draws the same. The master image comes from
       # the software painter, which draws the stroke over the fill.
       - name: Image tests
-        run: go test -tags wgputest -skip 'Test_colorButton_Layout/primary_hovered' ./widget/... ./canvas/... ./container/... ./dialog/... ./layout/... ./internal/widget/... ./test/... ./theme/...
+        run: go test -tags wgputest -skip 'Test_colorButton_Layout/primary_hovered' ./widget/... ./canvas/... ./container/... ./dialog/... ./layout/... ./internal/widget/... ./test ./theme/...
 
       - name: Upload failed testdata
         uses: actions/upload-artifact@v5

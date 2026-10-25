@@ -1,6 +1,7 @@
 package painter
 
 import (
+	"encoding/binary"
 	"image"
 	"image/color"
 	"testing"
@@ -100,11 +101,9 @@ func blocks(yuv [][3]float64, depth int, full, interleaved bool) *canvas.VideoFr
 	n := len(yuv)
 	f := &canvas.VideoFrame{Width: 2 * n, Height: 2, Depth: depth, FullRange: full, YStride: 2 * n * b, CStride: n * b}
 	put := func(p []byte, i int, v float64) {
-		s := uint16(min(max(v, 0), float64(int(1)<<depth-1)) + 0.5)
-		p[i*b] = byte(s)
-		if b == 2 {
-			p[i*b+1] = byte(s >> 8)
-		}
+		var s [2]byte
+		binary.LittleEndian.PutUint16(s[:], uint16(min(max(v, 0), float64(int(1)<<depth-1))+0.5))
+		copy(p[i*b:i*b+b], s[:b])
 	}
 	code := func(v, lo, span, mid float64) float64 { // v as the depth stores it
 		k := float64(int(1) << (depth - 8))

@@ -17,7 +17,7 @@ type isBaseWidget interface {
 // Renderer looks up the render implementation for a widget
 // If one does not exist, it creates and caches a renderer for the widget.
 func Renderer(wid fyne.Widget) fyne.WidgetRenderer {
-	r, _ := renderer(wid)
+	r, _ := rendererEntry(wid)
 	return r
 }
 
@@ -36,13 +36,13 @@ func RendererFor(ref *RendererRef, wid fyne.Widget) fyne.WidgetRenderer {
 		info.setAlive()
 		return info.renderer
 	}
-	r, info := renderer(wid)
+	r, info := rendererEntry(wid)
 	ref.info = info
 	return r
 }
 
-// renderer is Renderer returning the cache entry as well.
-func renderer(wid fyne.Widget) (fyne.WidgetRenderer, *rendererInfo) {
+// rendererEntry is Renderer returning the cache entry as well.
+func rendererEntry(wid fyne.Widget) (fyne.WidgetRenderer, *rendererInfo) {
 	if rinfo := cachedRendererInfo(wid); rinfo != nil {
 		return rinfo.renderer, rinfo
 	}

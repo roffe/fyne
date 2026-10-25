@@ -22,7 +22,7 @@ func GetCanvasForObject(obj fyne.CanvasObject) fyne.Canvas {
 // SetCanvasForObject sets the canvas for the specified object.
 // The passed function will be called if the item was not previously attached to this canvas
 func SetCanvasForObject(obj fyne.CanvasObject, c fyne.Canvas, setup func()) {
-	setCanvasForObject(obj, c, setup)
+	storeCanvas(obj, c, setup)
 }
 
 // CanvasRef is an object's registration with a canvas, kept by whoever
@@ -42,11 +42,11 @@ func SetCanvasForObjectRef(ref *CanvasRef, obj fyne.CanvasObject, c fyne.Canvas,
 		info.setAlive()
 		return
 	}
-	ref.info = setCanvasForObject(obj, c, setup)
+	ref.info = storeCanvas(obj, c, setup)
 }
 
-// setCanvasForObject is SetCanvasForObject returning the entry obj has after.
-func setCanvasForObject(obj fyne.CanvasObject, c fyne.Canvas, setup func()) *canvasInfo {
+// storeCanvas is SetCanvasForObject returning the entry obj has after.
+func storeCanvas(obj fyne.CanvasObject, c fyne.Canvas, setup func()) *canvasInfo {
 	// this runs for every visible object on every repaint, so avoid allocating
 	// a canvasInfo we would only throw away - and keep the entry alive so a
 	// constantly repainting window does not expire its own cache.

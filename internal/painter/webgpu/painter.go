@@ -799,7 +799,7 @@ func (p *Painter) renderPass() *wgpu.RenderPassEncoder {
 }
 
 // canvasPixels is the canvas's size in frame pixels.
-func (p *Painter) canvasPixels() (int, int) {
+func (p *Painter) canvasPixels() (w, h int) {
 	size := p.canvas.Size()
 	return int(float32(scale.ToScreenCoordinate(p.canvas, size.Width)) * p.texScale),
 		int(float32(scale.ToScreenCoordinate(p.canvas, size.Height)) * p.texScale)

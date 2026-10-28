@@ -76,10 +76,10 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/roffe/gowgpu v0.0.0-20261025174757-5f979fa489cc h1:7uhjiYIN7X83uuePqV68TA0L3BnNPsnR1Ckw3eitRyQ=
-github.com/roffe/gowgpu v0.0.0-20261025174757-5f979fa489cc/go.mod h1:e/kmdJs31QOuKcBV3Nfcr5SMku+p7qkq6bchX3MNDHw=
-github.com/roffe/naga v0.0.0-20261025173350-5d34f009387c h1:hBj4A3KrmTNZAvNzp4oPtTYDINR1E8nmCdvWHN2OYEE=
-github.com/roffe/naga v0.0.0-20261025173350-5d34f009387c/go.mod h1:xVSreQeq7W169Wr9X6TuyO/I959MnEGw4xxAGOsGQns=
+github.com/roffe/gowgpu v0.0.0-20261028100612-49d601b1ade0 h1:FnwbE9R0abbJHZsSfvK4HjCZiHkmshqtxDl9Qb/wOHc=
+github.com/roffe/gowgpu v0.0.0-20261028100612-49d601b1ade0/go.mod h1:FO0O/LfXO4yEm9s/aywQvjjJyYiE3oA94kwBuUq8L3o=
+github.com/roffe/naga v0.0.0-20261028100100-81f6a794b048 h1:4YQOT9xQeDyAwUlukrf7n5owHekf8ky0wSCnsS8PB1s=
+github.com/roffe/naga v0.0.0-20261028100100-81f6a794b048/go.mod h1:xVSreQeq7W169Wr9X6TuyO/I959MnEGw4xxAGOsGQns=
 github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf35Ld67mk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/rymdport/portal v0.4.2 h1:7jKRSemwlTyVHHrTGgQg7gmNPJs88xkbKcIL3NlcmSU=

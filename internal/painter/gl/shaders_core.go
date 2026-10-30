@@ -44,16 +44,6 @@ var (
 	shaderVertTexturedPassthrough2D []byte
 )
 
-var (
-	//go:embed shaders/slug.frag
-	slugFrag string
-	//go:embed shaders/slug.vert
-	slugVert string
-
-	shaderFragSlug = []byte("#version 110\n" + slugFrag)
-	shaderVertSlug = []byte("#version 110\n" + slugVert)
-)
-
 // userShaderFragment returns the fragment shader source to use for the given
 // shader object on this build target.
 func userShaderFragment(s *canvas.Shader) []byte {

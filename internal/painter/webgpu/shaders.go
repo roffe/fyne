@@ -25,8 +25,6 @@ var (
 	shaderRectangle string
 	//go:embed shaders/regular_polygon.wgsl
 	shaderRegularPolygon string
-	//go:embed shaders/slug.wgsl
-	shaderSlug string
 	//go:embed shaders/round_rectangle.wgsl
 	shaderRoundRectangle string
 	//go:embed shaders/texture.wgsl

@@ -109,10 +109,6 @@ type Painter struct {
 	atlas                 paint.GlyphAtlas
 	atlasTex              *gpuTexture
 	quadScratch           []paint.GlyphQuad
-	slug                  paint.SlugGlyphs
-	slugQuads             []paint.SlugQuad
-	slugPending           []float32 // queued Slug text, slugVertexFloats a vertex
-	slugTex               *gpuTexture
 	pixels                []uint8                // updateImageTexture's upload scratch
 	glyphPending          []float32              // queued quads, glyphVertexFloats a vertex
 	linePending           []float32              // queued lines, lineVertexFloats a vertex
@@ -514,7 +510,7 @@ func (p *Painter) Release() {
 			us.release()
 		}
 	}
-	for _, t := range []*gpuTexture{p.frame, p.atlasTex, p.blurSnap, p.empty, p.slugTex} {
+	for _, t := range []*gpuTexture{p.frame, p.atlasTex, p.blurSnap, p.empty} {
 		if t != nil {
 			t.release()
 		}
@@ -660,7 +656,6 @@ func drawQuad[T any](p *Painter, pipe *wgpu.RenderPipeline, u *T, tex *wgpu.Bind
 	if p.batchN == 0 {
 		p.flushQuads() // queued glyphs and lines are underneath
 		p.flushLines()
-		p.flushSlug()
 		p.batchPipe, p.batchTex, p.batchStart = pipe, tex, p.uniformSpace()
 	}
 	p.uniforms = append(p.uniforms, b...)

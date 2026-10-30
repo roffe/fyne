@@ -9,7 +9,7 @@ cd test/bench
 BASE=develop ./bench.sh
 ```
 
-That builds the bench from your working tree and from `BASE` with the GL and WebGPU painters, and runs the whole matrix interleaved, base and head back to back per scene. Every painter runs twice, with text through the glyph atlas and through Slug (`FYNE_TEXT=slug`, rows ending in `-slug`). Slug is only run on head, and not for rects, which has no text. The base build lives in a sibling worktree (`../fyne-bench-base`) and gets the same bench code and a copy of your go.work, so the only thing that differs is fyne itself.
+That builds the bench from your working tree and from `BASE` with the GL and WebGPU painters, and runs the whole matrix interleaved, base and head back to back per scene. The base build lives in a sibling worktree (`../fyne-bench-base`) and gets the same bench code and a copy of your go.work, so the only thing that differs is fyne itself.
 
 Windows will pop up one after another. Leave them alone and don't cover them, a hidden window on Wayland stops getting frame callbacks and the numbers go bad.
 
@@ -22,7 +22,6 @@ Results land in `bin/results-<platform>.tsv`, and with `BASE` set `bin/results-<
 D=3s ./bench.sh                shorter runs, 8s by default
 PLATFORM=x11 ./bench.sh        force X11/XWayland, default follows your session
 PAINTERS=gl ./bench.sh         only some painters, default "gl wgpu-vulkan wgpu-gl"
-TEXT=atlas ./bench.sh          only some text renderers, default "atlas slug"
 ./bench.sh rects 5000 1        one scene/n/u instead of the matrix, goes to bin/last.tsv
 ```
 
@@ -31,7 +30,7 @@ The binaries end up in `bin/` and take a few extra flags if you want to dig:
 ```
 bin/head-wgpu -scene widgets -n 500 -u 0 -prof bin/x    writes bin/x.cpu and bin/x.allocs (pprof)
 bin/head-wgpu -scene text -n 2000 -shot shot.png        saves a PNG of the window when the run ends
-FYNE_TEXT=slug FYNE_WGPU_BACKEND=gl bin/head-wgpu ...   what the -slug and wgpu-gl rows run
+FYNE_WGPU_BACKEND=gl bin/head-wgpu ...                  what the wgpu-gl rows run
 bin/head-gl -table bin/last.tsv                         renders bin/last.png from a results TSV
 ```
 
@@ -51,7 +50,7 @@ The script and the CPU/RSS columns are Linux only for now, they come from getrus
 
 **text** (500/2000/8000): N canvas.Text in a grid, 8-14pt depending on how many there are. Every frame every one gets a new number like "-532.7" and a Refresh(). That's the whole text path, shaping, rasterizing or atlas, and texture uploads.
 
-**zoom** (100/1000): N labels whose text size sweeps between 0.2x and 1.8x every few seconds, like a zooming or animated view. The atlas caches glyphs per size, so it keeps rasterising; Slug draws any size from the outlines it already has. This is the scene where they differ most.
+**zoom** (100/1000): N labels whose text size sweeps between 0.2x and 1.8x every few seconds, like a zooming or animated view. The atlas caches glyphs per size, so a range this wide keeps it rasterising.
 
 **widgets** (50/500/2000 tiles): tiles in a 10 wide grid inside a VScroll. Each tile is a Label, ProgressBar, Slider, Entry and a Check + Button. Every frame every tile gets SetText on the label and SetValue on the bar and slider. 50 tiles is about one screen, the bigger ones are mostly scrolled off, so those are more refresh/layout/MinSize cost than drawing.
 

@@ -62,14 +62,7 @@ type painter struct {
 	maxTextureSize      int
 	pixScale            float32 // pre-calculate scale*texScale for each draw
 	programs            *programs
-	quadScratch         []paint.GlyphQuad // one string's glyph quads, reused
-	slug                paint.SlugGlyphs
-	slugFailed          bool
-	slugPending         []float32 // queued Slug text, slugVertexFloats each
-	slugProg            *programState
-	slugQuads           []paint.SlugQuad
-	slugTex             Texture
-	slugTexValid        bool
+	quadScratch         []paint.GlyphQuad       // one string's glyph quads, reused
 	shaderPrograms      map[string]*shaderState // lazily compiled programs for user shaders, keyed by Shader.Name
 	stats               drawStats               // FYNE_GL_DEBUG counters
 	texScale            float32
@@ -91,7 +84,6 @@ func (p *painter) Clear() {
 	// Anything still queued belongs to a frame that is about to be wiped.
 	p.glyphPending = p.glyphPending[:0]
 	p.linePending = p.linePending[:0]
-	p.slugPending = p.slugPending[:0]
 	r, g, b, a := theme.Color(theme.ColorNameBackground).RGBA()
 	p.ctx.ClearColor(float32(r)/max16bit, float32(g)/max16bit, float32(b)/max16bit, float32(a)/max16bit)
 	p.ctx.Clear(bitColorBuffer | bitDepthBuffer)

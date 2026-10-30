@@ -287,7 +287,6 @@ func (p *painter) drawLine(line *canvas.Line, pos fyne.Position, frame fyne.Size
 	points, halfWidth, feather := p.lineCoords(pos, line.Position1, line.Position2, line.StrokeWidth, 0.5, frame)
 	r, g, b, a := getFragmentColor(line.StrokeColor)
 	p.flushQuads() // quads queued before this line belong under it
-	p.flushSlug()
 	for v := range vertexCountLine {
 		pt := points[v*coordinateSize2DWithNormal:]
 		p.linePending = append(p.linePending, pt[0], pt[1], pt[2], pt[3], r, g, b, a, halfWidth, feather)
@@ -915,7 +914,7 @@ func (p *painter) drawText(text *canvas.Text, pos fyne.Position, frame fyne.Size
 	// The atlas draws a quad per glyph out of one shared texture, so it needs no
 	// texture of its own and no width limit - both paths after it exist only for
 	// strings it cannot represent.
-	if paint.SlugText && p.drawTextSlug(text, pos, frame, clip) || p.drawTextFromAtlas(text, pos, frame, clip) {
+	if p.drawTextFromAtlas(text, pos, frame, clip) {
 		// A run that used to be too wide for one texture may have a windowed
 		// texture parked from before; with no width limit here, it is dead.
 		p.freeClippedTextTexture(text)

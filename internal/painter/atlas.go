@@ -108,7 +108,7 @@ type GlyphAtlas struct {
 // texture path instead: a character the shaper found no glyph for, or a glyph
 // a coverage atlas cannot hold, such as a colour emoji.
 func (a *GlyphAtlas) TextQuads(dst []GlyphQuad, text *canvas.Text, pos fyne.Position, pixScale, minX, maxX float32, tex AtlasTexture) ([]GlyphQuad, bool) {
-	glyphs, ok := a.Shape(text, pixScale)
+	glyphs, ok := a.shape(text, pixScale)
 	if !ok {
 		return dst, false
 	}
@@ -198,10 +198,9 @@ func (a *GlyphAtlas) Size() int {
 	return a.packer.side()
 }
 
-// Shape returns text's glyphs as WalkGlyphs places them, from the cache when the
-// string has been shaped before. It reports false for a string only the
-// whole-run texture path can draw, see shapeable.
-func (a *GlyphAtlas) Shape(text *canvas.Text, pixScale float32) ([]PlacedGlyph, bool) {
+// shape returns text's glyphs as WalkGlyphs places them, from the cache when the
+// string has been shaped before.
+func (a *GlyphAtlas) shape(text *canvas.Text, pixScale float32) ([]PlacedGlyph, bool) {
 	face := CachedFontFace(text.TextStyle, text.FontSource, text)
 	key := shapedKey{text: text.Text, face: face, size: text.TextSize, scale: pixScale, style: text.TextStyle}
 	if e, ok := a.shaped[key]; ok {

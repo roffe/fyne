@@ -44,25 +44,6 @@ var (
 	shaderVertTexturedPassthrough2D []byte
 )
 
-var (
-	//go:embed shaders/slug.frag
-	slugFrag string
-	//go:embed shaders/slug.vert
-	slugVert string
-
-	// A device without highp fragments or derivatives fails to compile this,
-	// which sends its text to the atlas.
-	shaderFragSlug = []byte(`#version 100
-#extension GL_OES_standard_derivatives : enable
-#ifndef GL_FRAGMENT_PRECISION_HIGH
-#error Slug needs highp floats
-#endif
-precision highp float;
-precision highp sampler2D;
-` + slugFrag)
-	shaderVertSlug = []byte("#version 100\n" + slugVert)
-)
-
 // userShaderFragment returns the fragment shader source to use for the given
 // shader object on this build target.
 func userShaderFragment(s *canvas.Shader) []byte {

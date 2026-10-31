@@ -5,10 +5,10 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/gogpu/naga"
+	"github.com/gogpu/naga/hlsl"
+	"github.com/gogpu/naga/ir"
 	"github.com/roffe/gowgpu/hal/dx12/d3dcompile"
-	"github.com/roffe/naga"
-	"github.com/roffe/naga/hlsl"
-	"github.com/roffe/naga/ir"
 )
 
 // TestShadersCompileWithFXC compiles every pipeline's WGSL the way gogpu's

@@ -19,6 +19,7 @@ require (
 	github.com/go-text/render v0.2.1
 	github.com/go-text/typesetting v0.3.5
 	github.com/godbus/dbus/v5 v5.2.2
+	github.com/gogpu/naga v0.20.6-0.20261031111303-7e8984a54a3c
 	github.com/hack-pad/go-indexeddb v0.3.2
 	github.com/jackmordaunt/icns/v2 v2.2.7
 	github.com/jeandeaual/go-locale v0.0.0-20250612000132-0ef82f21eade
@@ -29,8 +30,7 @@ require (
 	github.com/natefinch/atomic v1.0.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/nicksnyder/go-i18n/v2 v2.5.1
-	github.com/roffe/gowgpu v0.0.0-20261028100612-49d601b1ade0
-	github.com/roffe/naga v0.0.0-20261028100100-81f6a794b048
+	github.com/roffe/gowgpu v0.0.0-20261031111521-45c1d97b4093
 	github.com/rymdport/portal v0.4.2
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
 	github.com/stretchr/testify v1.11.1

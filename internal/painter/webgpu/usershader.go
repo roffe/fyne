@@ -7,8 +7,8 @@ import (
 	"image"
 	"math"
 
-	"github.com/gogpu/naga"
 	"github.com/gogpu/naga/ir"
+	"github.com/gogpu/naga/wgsl"
 	wgpu "github.com/roffe/gowgpu"
 	"github.com/roffe/gowgpu/gputypes"
 
@@ -232,11 +232,7 @@ func (us *userShader) release() {
 // out of naga's IR, which also lays the uniform struct out. Anything bound
 // that Fyne would not fill is an error, rather than a draw reading garbage.
 func reflectUserShader(src string) (userLayout, error) {
-	ast, err := naga.Parse(src)
-	if err != nil {
-		return userLayout{}, err
-	}
-	mod, err := naga.LowerWithSource(ast, src)
+	mod, _, err := wgsl.Parse(src, wgsl.ParseOptions{})
 	if err != nil {
 		return userLayout{}, err
 	}

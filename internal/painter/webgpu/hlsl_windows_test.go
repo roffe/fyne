@@ -5,9 +5,9 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/gogpu/naga"
 	"github.com/gogpu/naga/hlsl"
 	"github.com/gogpu/naga/ir"
+	"github.com/gogpu/naga/wgsl"
 	"github.com/roffe/gowgpu/hal/dx12/d3dcompile"
 )
 
@@ -41,11 +41,7 @@ func TestShadersCompileWithFXC(t *testing.T) {
 	heapUse := regexp.MustCompile(`static const SamplerState (\w+) = nagaSamplerHeap\[nagaGroup\d+SamplerIndexArray\[(\d+)\]\];`)
 
 	for name, src := range srcs {
-		ast, err := naga.Parse(src)
-		if err != nil {
-			t.Fatal(name, err)
-		}
-		mod, err := naga.LowerWithSource(ast, src)
+		mod, _, err := wgsl.Parse(src, wgsl.ParseOptions{})
 		if err != nil {
 			t.Fatal(name, err)
 		}

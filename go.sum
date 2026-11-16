@@ -78,8 +78,8 @@ github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWb
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/roffe/gowgpu v0.0.0-20261031111521-45c1d97b4093 h1:/YqxKbUpDX8Q5KP7raJrts2DFOGRQS9QkJZPpWicUdQ=
-github.com/roffe/gowgpu v0.0.0-20261031111521-45c1d97b4093/go.mod h1:XZJ7JoezQIPMmAJg19z/RDD5zYYQ659Uk43rxmWicF4=
+github.com/roffe/gowgpu v0.0.0-20261116225745-11d0e04a5175 h1:VXzx5z4/nRZbGDmEUQ8T0xaiwEs7p1O2xTXlvPR3Nr8=
+github.com/roffe/gowgpu v0.0.0-20261116225745-11d0e04a5175/go.mod h1:XZJ7JoezQIPMmAJg19z/RDD5zYYQ659Uk43rxmWicF4=
 github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf35Ld67mk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/rymdport/portal v0.4.2 h1:7jKRSemwlTyVHHrTGgQg7gmNPJs88xkbKcIL3NlcmSU=

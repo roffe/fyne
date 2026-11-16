@@ -24,7 +24,7 @@ const maxLOD = 32
 // u32 converts a size, offset or count, never negative nor near 2³², for the
 // GPU API.
 func u32(v int) uint32 {
-	if v < 0 || v > math.MaxUint32 {
+	if v < 0 || uint64(v) > math.MaxUint32 {
 		return 0
 	}
 	return uint32(v)
